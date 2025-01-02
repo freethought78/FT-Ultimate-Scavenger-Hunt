@@ -1,5 +1,7 @@
 package FTUltimateScavengerHunt;
 
+import net.minecraft.network.chat.ChatType;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -7,8 +9,14 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.storage.LevelResource;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent.ItemPickupEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.entity.player.PlayerXpEvent.XpChange;
 import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -39,6 +47,7 @@ import com.mojang.logging.LogUtils;
 @Mod.EventBusSubscriber(modid = "ftultimatescavengerhunt", bus = Mod.EventBusSubscriber.Bus.FORGE)
 
 public class FTUltimateScavengerHunt {
+	
     // Define a mod id in a common place for everything to reference
     public static final String MODID = "ftultimatescavengerhunt";
 	
@@ -46,7 +55,7 @@ public class FTUltimateScavengerHunt {
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 
- // Block Registration
+    // Block Registration
     public static final RegistryObject<Block> FT_QUEST_HUB_BLOCK = BLOCKS.register("ft_quest_hub",
             () -> new FTQuestHubBlock());  // Use your custom block class here
 
@@ -54,19 +63,23 @@ public class FTUltimateScavengerHunt {
     public static final RegistryObject<BlockItem> FT_QUEST_HUB_BLOCK_ITEM = ITEMS.register("ft_quest_hub",
             () -> new BlockItem(FT_QUEST_HUB_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
 
-
-
     private static final Logger LOGGER = LogUtils.getLogger();
     //public static Map<String, Boolean> itemChecklist = new HashMap<>();
     
     // Master checklist for the current world
-    private static final Set<String> masterChecklist = new HashSet<>();
+    private static Set<String> masterChecklist = new HashSet<>();
 
     // Player progress (UUID -> checklist progress)
-    public static final Map<UUID, Map<String, Boolean>> playerProgress = new HashMap<>();
+    public static Map<UUID, Map<String, Boolean>> playerProgress = new HashMap<>();
+    
+    public static boolean isHuntStarted = false;
+    public static UUID huntWinner = null; 
     
     public FTUltimateScavengerHunt() {
+    	LOGGER.info("FTUltimateScavengerHunt mod is initializing...");
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+
+        MinecraftForge.EVENT_BUS.register(this);
 
         // Register blocks and items
         BLOCKS.register(modEventBus);
@@ -76,14 +89,87 @@ public class FTUltimateScavengerHunt {
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
         LOGGER.info("SERVER STARTED ***");
-        initializeMasterChecklist(event.getServer());
+        
+        
+        MinecraftServer server = event.getServer();
+        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
+        Path checklistPath = worldFolderPath.resolve("master_checklist.json");
+
+        if (!Files.exists(checklistPath)) {
+        	isHuntStarted = false;
+        }        	
+        huntWinner = null;
+        masterChecklist = new HashSet<>();
+        playerProgress = new HashMap<>();
     }
+
     
+ // Disable world interactions until the hunt has started
+    @SubscribeEvent
+    public static void onBlockBreak(BlockEvent.BreakEvent event) {
+        if (!isHuntStarted) {
+        	if (event.isCancelable()) event.setCanceled(true);  // Cancel block breaking
+        }
+    }
+
+    @SubscribeEvent
+    public static void onItemPickup(ItemPickupEvent event) {
+        if (!isHuntStarted) {
+        	if (event.isCancelable()) event.setCanceled(true);  // Cancel item pickups
+        }
+    }
+
+    @SubscribeEvent
+    public static void onXPChange(XpChange event) {
+        if (!isHuntStarted) {
+        	if (event.isCancelable()) event.setCanceled(true);  // Cancel XP gain
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerDamage(LivingDamageEvent event) {
+        if (!isHuntStarted) {
+        	if (event.isCancelable()) event.setCanceled(true);  // Cancel damage
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerInteract(PlayerInteractEvent event) {
+        if (!isHuntStarted) {
+            if (event.isCancelable()) event.setCanceled(true);   // Cancel other types of interactions
+        }
+    }
+
+
+    // Initialize the checklist and other methods like loadMasterChecklist, generateMasterChecklist, etc.
+
+    
+    // Inside onPlayerLoggedIn method (modified)
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        initializePlayerProgress(event.getPlayer().getServer(), event.getPlayer().getUUID());
+        if (huntWinner != null) {
+            // If the hunt has ended, inform the player they cannot interact with the hunt
+            event.getPlayer().sendMessage(new TextComponent("The scavenger hunt has ended. You cannot continue the hunt."), event.getPlayer().getUUID());
+            event.setCanceled(true);  // Optionally cancel the login event if you want to block further interaction
+        } else if (isHuntStarted) {
+            // Initialize player progress if the hunt is started and not yet ended
+            initializePlayerProgress(event.getPlayer().getServer(), event.getPlayer().getUUID());
+        }
     }
     
+ // Method to mark a player as the winner and end the hunt
+    public static void endHunt(MinecraftServer server, UUID winnerUUID) {
+        if (huntWinner == null) {
+            huntWinner = winnerUUID;
+            isHuntStarted = false;  // End the hunt
+
+            // Create the message
+            TextComponent message = new TextComponent("The scavenger hunt has ended! Winner: " + winnerUUID);
+
+            // Broadcast the message to all players in the default chat type
+            server.getPlayerList().broadcastMessage(message, ChatType.SYSTEM, null);
+        }
+    }
    
     private static void saveMasterChecklist(MinecraftServer server) {
         // Save `masterChecklist` within the world folder
@@ -111,7 +197,7 @@ public class FTUltimateScavengerHunt {
             } catch (IOException e) {
                 LOGGER.error("Failed to load master checklist", e);
             }
-        }
+        } 
         return new HashSet<>();
     }
     
@@ -184,7 +270,7 @@ public class FTUltimateScavengerHunt {
     }
 
     
-    private static void initializeMasterChecklist(MinecraftServer server) {
+    public static void initializeMasterChecklist(MinecraftServer server) {
         // Try to load the master checklist from file first
         Set<String> loadedChecklist = loadMasterChecklist(server);
 
