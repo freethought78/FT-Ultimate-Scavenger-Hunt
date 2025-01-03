@@ -59,7 +59,8 @@ public class ModCommands {
                     // Start the hunt
                     FTUltimateScavengerHunt.initializeMasterChecklist(context.getSource().getServer());
                     FTUltimateScavengerHunt.isHuntStarted = true;
-
+                    
+                    FTUltimateScavengerHunt.setWorldBorder(server.overworld(), FTUltimateScavengerHunt.EXPANDED_BORDER_SIZE);
                     context.getSource().sendSuccess(new TextComponent("Master checklist initialized and hunt started!"), false);
                 }
 

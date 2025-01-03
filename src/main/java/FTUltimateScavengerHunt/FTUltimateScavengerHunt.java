@@ -11,6 +11,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.border.WorldBorder;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -22,7 +24,9 @@ import net.minecraftforge.event.entity.player.PlayerEvent.ItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerXpEvent.XpChange;
 import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.world.BlockEvent;
+import net.minecraftforge.event.world.ChunkEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -81,6 +85,10 @@ public class FTUltimateScavengerHunt {
     public static boolean isHuntStarted = false;
     public static UUID huntWinner = null; 
     
+    // Set the initial world border size (in blocks, adjust as needed)
+    private static final int INITIAL_BORDER_SIZE = 128; // 128 blocks (8x8 chunks)
+    public static final int EXPANDED_BORDER_SIZE = 1000000; // World border when the hunt starts
+    
     public FTUltimateScavengerHunt() {
     	LOGGER.info("FTUltimateScavengerHunt mod is initializing...");
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
@@ -92,8 +100,26 @@ public class FTUltimateScavengerHunt {
         ITEMS.register(modEventBus);
     }
     
+    // Event listener to set world border when the server starts
+    @SubscribeEvent
+    public static void onServerStarting(ServerStartingEvent event) {
+    	ServerLevel world = event.getServer().getLevel(ServerLevel.OVERWORLD);
+
+        // Initially, set a small world border when the hunt hasn't started
+        setWorldBorder(world, INITIAL_BORDER_SIZE);
+    }
+    
+    // Method to set the world border size
+    public static void setWorldBorder(ServerLevel world, int size) {
+        WorldBorder border = world.getWorldBorder();
+        border.setCenter(world.getSharedSpawnPos().getX(), world.getSharedSpawnPos().getZ());
+        border.setSize(size);
+    }
+    
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
+    	ServerLevel world = event.getServer().getLevel(ServerLevel.OVERWORLD);
+    	
         LOGGER.info("SERVER STARTED ***");
         
         
@@ -107,6 +133,8 @@ public class FTUltimateScavengerHunt {
         huntWinner = null;
         masterChecklist = new HashSet<>();
         playerProgress = new HashMap<>();
+        
+        if (isHuntStarted) setWorldBorder(world, EXPANDED_BORDER_SIZE);
     }
 
     
@@ -227,10 +255,6 @@ public class FTUltimateScavengerHunt {
             serverWorld.setDayTime(frozenTime);
         }
     }
-
-
-
-    // Initialize the checklist and other methods like loadMasterChecklist, generateMasterChecklist, etc.
 
     
     // Inside onPlayerLoggedIn method (modified)
