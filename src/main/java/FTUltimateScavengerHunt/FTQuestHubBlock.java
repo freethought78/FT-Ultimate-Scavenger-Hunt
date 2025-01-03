@@ -137,12 +137,6 @@ public class FTQuestHubBlock extends Block {
         return false;
     }
 
-    private void broadcastItemTurnedIn(MinecraftServer server, String playerName, String itemName) {
-        // Broadcast the item turn-in message to the entire server
-        String message = playerName + " has turned in the item: " + itemName;
-        server.getPlayerList().broadcastMessage(new TextComponent(message), ChatType.SYSTEM, null);
-    }
-
     private boolean isPlayerComplete(UUID playerId) {
         if (FTUltimateScavengerHunt.playerProgress.containsKey(playerId)) {
             Map<String, Boolean> progress = FTUltimateScavengerHunt.playerProgress.get(playerId);

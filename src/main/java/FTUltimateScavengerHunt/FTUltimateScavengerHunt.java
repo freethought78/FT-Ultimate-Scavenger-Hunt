@@ -4,9 +4,11 @@ import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.storage.LevelResource;
@@ -317,6 +319,14 @@ public class FTUltimateScavengerHunt {
                 for (String item : masterChecklist) {
                     progress.put(item, false);
                 }
+                
+                //Give the player a quest hub block
+                ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+                ItemStack questblock = new ItemStack(FTUltimateScavengerHunt.FT_QUEST_HUB_BLOCK_ITEM.get());
+                
+                player.getInventory().add(questblock);
+                player.sendMessage(new TextComponent("You have received an FT Quest Hub Block to begin your scavenger hunt!"), playerId);
+                
                 // Save the player's progress in the correct world folder
                 savePlayerProgress(server, playerId, progress);
             }
@@ -384,6 +394,12 @@ public class FTUltimateScavengerHunt {
             LOGGER.info("Master checklist not found, generating a new checklist...");
             generateMasterChecklist(server);
             saveMasterChecklist(server); // Save the newly generated checklist
+            
+            // Initialize progress for all logged-in players and give them the FT Quest Hub Block
+            for (ServerPlayer loggedInPlayer : server.getPlayerList().getPlayers()) {
+                FTUltimateScavengerHunt.initializePlayerProgress(server, loggedInPlayer.getUUID());
+            }
+            
         } else {
             masterChecklist.addAll(loadedChecklist); // If the checklist is found, use the loaded checklist
             LOGGER.info("Loaded master checklist from file.");

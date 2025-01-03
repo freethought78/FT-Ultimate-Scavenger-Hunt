@@ -5,8 +5,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.item.ItemStack;
-
 import org.slf4j.Logger;
 
 import com.mojang.brigadier.Command;
@@ -56,21 +54,6 @@ public class ModCommands {
                     // Start the hunt
                     FTUltimateScavengerHunt.initializeMasterChecklist(context.getSource().getServer());
                     FTUltimateScavengerHunt.isHuntStarted = true;
-
-                    // Initialize progress for all logged-in players and give them the FT Quest Hub Block
-                    for (ServerPlayer loggedInPlayer : context.getSource().getServer().getPlayerList().getPlayers()) {
-                        FTUltimateScavengerHunt.initializePlayerProgress(context.getSource().getServer(), loggedInPlayer.getUUID());
-
-                        // Give the player one FT Quest Hub Block
-                        ItemStack questHubBlock = new ItemStack(FTUltimateScavengerHunt.FT_QUEST_HUB_BLOCK_ITEM.get());
-                        if (!loggedInPlayer.getInventory().add(questHubBlock)) {
-                            // If the inventory is full, drop the item near them
-                            loggedInPlayer.drop(questHubBlock, false);
-                        }
-
-                        // Notify the player about the reward
-                        loggedInPlayer.sendMessage(new TextComponent("You have received an FT Quest Hub Block to begin your scavenger hunt!"), loggedInPlayer.getUUID());
-                    }
 
                     context.getSource().sendSuccess(new TextComponent("Master checklist initialized and hunt started!"), false);
                 }
