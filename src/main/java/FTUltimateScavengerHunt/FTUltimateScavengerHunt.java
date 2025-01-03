@@ -3,6 +3,7 @@ package FTUltimateScavengerHunt;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -10,7 +11,10 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.ItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -67,7 +71,7 @@ public class FTUltimateScavengerHunt {
     //public static Map<String, Boolean> itemChecklist = new HashMap<>();
     
     // Master checklist for the current world
-    private static Set<String> masterChecklist = new HashSet<>();
+    public static Set<String> masterChecklist = new HashSet<>();
 
     // Player progress (UUID -> checklist progress)
     public static Map<UUID, Map<String, Boolean>> playerProgress = new HashMap<>();
@@ -139,6 +143,74 @@ public class FTUltimateScavengerHunt {
             if (event.isCancelable()) event.setCanceled(true);   // Cancel other types of interactions
         }
     }
+    
+    // Prevent entity attacks until the hunt has started
+    @SubscribeEvent
+    public static void onPlayerAttackEntity(AttackEntityEvent event) {
+        if (!isHuntStarted) {
+            if (event.isCancelable()) event.setCanceled(true);  // Cancel attacks on entities
+        }
+    }
+    
+    // Disable block placement until the hunt has started
+    @SubscribeEvent
+    public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
+        if (!isHuntStarted) {
+            if (event.isCancelable()) event.setCanceled(true);  // Cancel block placement
+        }
+    }
+
+ // Disable item dropping until the hunt has started
+    @SubscribeEvent
+    public static void onItemDrop(ItemTossEvent event) {
+        if (!isHuntStarted) {
+            if (event.isCancelable()) event.setCanceled(true);  // Cancel item dropping
+        }
+    }
+
+
+    // Disable item usage until the hunt has started
+    @SubscribeEvent
+    public static void onItemUse(PlayerInteractEvent.RightClickItem event) {
+        if (!isHuntStarted) {
+            if (event.isCancelable()) event.setCanceled(true);  // Cancel item use
+        }
+    }
+
+    // Disable entity interactions until the hunt has started
+    @SubscribeEvent
+    public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        if (!isHuntStarted) {
+            if (event.isCancelable()) event.setCanceled(true);  // Cancel entity interaction
+        }
+    }
+
+    // Disable crafting items until the hunt has started
+    @SubscribeEvent
+    public static void onItemCraft(PlayerEvent.ItemCraftedEvent event) {
+        if (!isHuntStarted) {
+            if (event.isCancelable()) event.setCanceled(true);  // Cancel crafting
+        }
+    }
+    
+    // Disable the passage of time until the hunt has started
+    private static long frozenTime = -1;  // Variable to store the frozen time
+    @SubscribeEvent
+    public static void onWorldTick(TickEvent.WorldTickEvent event) {
+        // Check if the world is a ServerLevel and if the hunt hasn't started
+        if (!isHuntStarted && event.world instanceof ServerLevel) {
+            ServerLevel serverWorld = (ServerLevel) event.world;
+
+            // If the time hasn't been frozen yet, freeze it at the current day time
+            if (frozenTime == -1) {
+                frozenTime = serverWorld.getDayTime();  // Capture the current time when the hunt starts
+            }
+
+            // Set the world time to the frozen time to keep it from advancing
+            serverWorld.setDayTime(frozenTime);
+        }
+    }
+
 
 
     // Initialize the checklist and other methods like loadMasterChecklist, generateMasterChecklist, etc.
@@ -161,13 +233,32 @@ public class FTUltimateScavengerHunt {
     public static void endHunt(MinecraftServer server, UUID winnerUUID) {
         if (huntWinner == null) {
             huntWinner = winnerUUID;
-            isHuntStarted = false;  // End the hunt
+
+            // Save the winner's UUID to a file
+            saveWinnerToFile(server, winnerUUID);
+
+            // Resolve the player's username from their UUID
+            String winnerName = server.getPlayerList().getPlayer(winnerUUID).getName().getString();
 
             // Create the message
-            TextComponent message = new TextComponent("The scavenger hunt has ended! Winner: " + winnerUUID);
+            TextComponent message = new TextComponent("The scavenger hunt has ended! Congatulations to " + winnerName + ", you are the winner!");
 
             // Broadcast the message to all players in the default chat type
             server.getPlayerList().broadcastMessage(message, ChatType.SYSTEM, null);
+        }
+    }
+
+    
+    private static void saveWinnerToFile(MinecraftServer server, UUID winnerUUID) {
+        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
+        Path winnerFilePath = worldFolderPath.resolve("hunt_winner.json");
+
+        try {
+            // Write the UUID to a JSON file
+            Files.write(winnerFilePath, new Gson().toJson(winnerUUID.toString()).getBytes());
+            LOGGER.info("Hunt winner UUID saved to " + winnerFilePath);
+        } catch (IOException e) {
+            LOGGER.error("Failed to save hunt winner UUID", e);
         }
     }
    
@@ -186,20 +277,34 @@ public class FTUltimateScavengerHunt {
     }
     
     private static Set<String> loadMasterChecklist(MinecraftServer server) {
-        // Load `masterChecklist` from the world folder
         Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
         Path checklistPath = worldFolderPath.resolve("master_checklist.json");
+        Path winnerFilePath = worldFolderPath.resolve("hunt_winner.json");
 
+        // Load the winner UUID if the file exists
+        if (Files.exists(winnerFilePath)) {
+            try {
+                String winnerJson = new String(Files.readAllBytes(winnerFilePath));
+                huntWinner = UUID.fromString(new Gson().fromJson(winnerJson, String.class));
+                LOGGER.info("Hunt winner UUID loaded: " + huntWinner);
+            } catch (IOException e) {
+                LOGGER.error("Failed to load hunt winner UUID", e);
+            }
+        }
+
+        // Load the master checklist
         if (Files.exists(checklistPath)) {
             try {
                 String json = new String(Files.readAllBytes(checklistPath));
+                isHuntStarted = true;
                 return new Gson().fromJson(json, new TypeToken<Set<String>>() {}.getType());
             } catch (IOException e) {
                 LOGGER.error("Failed to load master checklist", e);
             }
-        } 
+        }
         return new HashSet<>();
     }
+
     
     public static void initializePlayerProgress(MinecraftServer server, UUID playerId) {
         if (!playerProgress.containsKey(playerId)) {

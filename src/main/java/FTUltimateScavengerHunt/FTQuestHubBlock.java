@@ -62,26 +62,39 @@ public class FTQuestHubBlock extends Block {
             }
         }
 
-        // On the server side, do nothing when the block is right clicked with an empty hand
-        // Otherwise, something is in the player's hand. See if it can be turned in, is already complete, or is not part of the hunt.
+        // On the server side
         if (!level.isClientSide()) {
             if (heldItem.isEmpty()) {
                 return InteractionResult.SUCCESS;
             }
 
+            // Check if the item is part of the scavenger hunt checklist
             if (!isItemInChecklist(playerID, itemName)) {
                 player.sendMessage(new TextComponent(itemName + " is not part of the scavenger hunt."), playerID);
                 return InteractionResult.SUCCESS;
             }
+
+            // Check if the item has already been completed
             if (!isItemComplete(playerID, itemName)) {
                 markItemComplete(player.getServer(), playerID, itemName);
+                heldItem.shrink(1); // Decrease the item stack count
                 player.sendMessage(new TextComponent(itemName + " is now complete!"), playerID);
-                heldItem.shrink(1);
 
-                // Broadcast to the server that the player handed in an item
-                broadcastItemTurnedIn(player.getServer(), player.getName().getString(), itemName);
+                // Calculate and display the player's progress
+                Map<String, Boolean> progress = FTUltimateScavengerHunt.playerProgress.get(playerID);
+                long itemsTurnedIn = progress.values().stream().filter(Boolean::booleanValue).count();
+                long totalItems = FTUltimateScavengerHunt.masterChecklist.size();
+                long itemsRemaining = totalItems - itemsTurnedIn;
 
-                // Check if the player has completed all items and mark as winner if true
+                // Broadcast the item turn-in to the server
+                String playerName = player.getName().getString();
+                String broadcastMessage = String.format(
+                    "%s has turned in %s! They have now turned in %d out of %d items and have %d more to go!",
+                    playerName, itemName, itemsTurnedIn, totalItems, itemsRemaining
+                );
+                player.getServer().getPlayerList().broadcastMessage(new TextComponent(broadcastMessage), ChatType.SYSTEM, null);
+
+                // Check if the player has completed the scavenger hunt and declare them as the winner
                 if (isPlayerComplete(playerID)) {
                     FTUltimateScavengerHunt.endHunt(player.getServer(), playerID);
                 }
@@ -95,6 +108,7 @@ public class FTQuestHubBlock extends Block {
 
         return InteractionResult.SUCCESS; // Return SUCCESS to indicate that the action was handled
     }
+
 
     private void markItemComplete(MinecraftServer server, UUID playerID, String itemName) {
         if (FTUltimateScavengerHunt.playerProgress.containsKey(playerID)) {
