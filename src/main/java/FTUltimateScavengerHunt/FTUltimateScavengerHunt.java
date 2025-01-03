@@ -110,90 +110,105 @@ public class FTUltimateScavengerHunt {
     }
 
     
- // Disable world interactions until the hunt has started
+    // Prevent block breaking before the scavenger hunt starts
     @SubscribeEvent
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (!isHuntStarted) {
-        	if (event.isCancelable()) event.setCanceled(true);  // Cancel block breaking
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getPlayer().sendMessage(new TextComponent("You cannot break blocks until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
 
+    // Prevent item pickups before the scavenger hunt starts
     @SubscribeEvent
     public static void onItemPickup(ItemPickupEvent event) {
-        if (!isHuntStarted) {
-        	if (event.isCancelable()) event.setCanceled(true);  // Cancel item pickups
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getPlayer().sendMessage(new TextComponent("You cannot pick up items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
 
+    // Prevent XP gain before the scavenger hunt starts
     @SubscribeEvent
     public static void onXPChange(XpChange event) {
-        if (!isHuntStarted) {
-        	if (event.isCancelable()) event.setCanceled(true);  // Cancel XP gain
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getEntity().sendMessage(new TextComponent("You cannot gain XP until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
         }
     }
 
+    // Prevent player damage before the scavenger hunt starts
     @SubscribeEvent
     public static void onPlayerDamage(LivingDamageEvent event) {
-        if (!isHuntStarted) {
-        	if (event.isCancelable()) event.setCanceled(true);  // Cancel damage
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getEntity().sendMessage(new TextComponent("You cannot take damage until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
         }
     }
 
+    // Prevent player interactions with the world before the scavenger hunt starts
     @SubscribeEvent
     public static void onPlayerInteract(PlayerInteractEvent event) {
-        if (!isHuntStarted) {
-            if (event.isCancelable()) event.setCanceled(true);   // Cancel other types of interactions
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getPlayer().sendMessage(new TextComponent("You cannot interact with the world until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
-    
-    // Prevent entity attacks until the hunt has started
+
+    // Prevent player attacks on entities before the scavenger hunt starts
     @SubscribeEvent
     public static void onPlayerAttackEntity(AttackEntityEvent event) {
-        if (!isHuntStarted) {
-            if (event.isCancelable()) event.setCanceled(true);  // Cancel attacks on entities
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getPlayer().sendMessage(new TextComponent("You cannot attack entities until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
-    
-    // Disable block placement until the hunt has started
+
+    // Prevent block placement before the scavenger hunt starts
     @SubscribeEvent
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
-        if (!isHuntStarted) {
-            if (event.isCancelable()) event.setCanceled(true);  // Cancel block placement
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getEntity().sendMessage(new TextComponent("You cannot place blocks until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
         }
     }
 
- // Disable item dropping until the hunt has started
+    // Prevent item dropping before the scavenger hunt starts
     @SubscribeEvent
     public static void onItemDrop(ItemTossEvent event) {
-        if (!isHuntStarted) {
-            if (event.isCancelable()) event.setCanceled(true);  // Cancel item dropping
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getPlayer().sendMessage(new TextComponent("You cannot drop items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
 
-
-    // Disable item usage until the hunt has started
+    // Prevent item usage before the scavenger hunt starts
     @SubscribeEvent
     public static void onItemUse(PlayerInteractEvent.RightClickItem event) {
-        if (!isHuntStarted) {
-            if (event.isCancelable()) event.setCanceled(true);  // Cancel item use
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getPlayer().sendMessage(new TextComponent("You cannot use items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
 
-    // Disable entity interactions until the hunt has started
+    // Prevent entity interactions before the scavenger hunt starts
     @SubscribeEvent
     public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        if (!isHuntStarted) {
-            if (event.isCancelable()) event.setCanceled(true);  // Cancel entity interaction
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getPlayer().sendMessage(new TextComponent("You cannot interact with entities until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
 
-    // Disable crafting items until the hunt has started
+    // Prevent crafting before the scavenger hunt starts
     @SubscribeEvent
     public static void onItemCraft(PlayerEvent.ItemCraftedEvent event) {
-        if (!isHuntStarted) {
-            if (event.isCancelable()) event.setCanceled(true);  // Cancel crafting
+        if (!isHuntStarted && event.isCancelable()) {
+            event.setCanceled(true);
+            event.getPlayer().sendMessage(new TextComponent("You cannot craft items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
+
     
     // Disable the passage of time until the hunt has started
     private static long frozenTime = -1;  // Variable to store the frozen time
