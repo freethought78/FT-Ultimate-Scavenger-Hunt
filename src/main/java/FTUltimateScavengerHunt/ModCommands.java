@@ -14,6 +14,9 @@ import com.mojang.logging.LogUtils;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraft.world.level.Level;
+import net.minecraft.resources.ResourceKey;
+
 
 @Mod.EventBusSubscriber(modid = FTUltimateScavengerHunt.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class ModCommands {
@@ -30,9 +33,11 @@ public class ModCommands {
         }
     }
 
+
+
     public static void registerCommands(MinecraftServer server) {
         // Create the /starthunt command
-        LiteralArgumentBuilder<CommandSourceStack> command = Commands.literal("starthunt")
+        LiteralArgumentBuilder<CommandSourceStack> startHuntCommand = Commands.literal("starthunt")
             .executes(context -> {
                 // Retrieve the player from the context
                 ServerPlayer player = (ServerPlayer) context.getSource().getEntity();
@@ -61,7 +66,30 @@ public class ModCommands {
                 return Command.SINGLE_SUCCESS;
             });
 
-        // Register the command with the server's dispatcher
-        server.getCommands().getDispatcher().register(command);
+        // Create the /respawn command (available only when the hunt is not started)
+        LiteralArgumentBuilder<CommandSourceStack> respawnCommand = Commands.literal("respawn")
+            .executes(context -> {
+                ServerPlayer player = (ServerPlayer) context.getSource().getEntity();
+
+                // Check if the hunt is not started
+                if (FTUltimateScavengerHunt.isHuntStarted) {
+                    context.getSource().sendSuccess(new TextComponent("You cannot respawn during the scavenger hunt."), false);
+                    return Command.SINGLE_SUCCESS;
+                }
+
+                // Respawn the player at the server's default spawn point (Overworld spawn)
+                player.teleportTo(player.getServer().getLevel(Level.OVERWORLD).getSharedSpawnPos().getX(), 
+                                  player.getServer().getLevel(Level.OVERWORLD).getSharedSpawnPos().getY(),
+                                  player.getServer().getLevel(Level.OVERWORLD).getSharedSpawnPos().getZ());
+
+                context.getSource().sendSuccess(new TextComponent("You have been respawned at the default spawn point."), false);
+
+                return Command.SINGLE_SUCCESS;
+            });
+
+        // Register the commands with the server's dispatcher
+        server.getCommands().getDispatcher().register(startHuntCommand);
+        server.getCommands().getDispatcher().register(respawnCommand);
     }
+
 }
