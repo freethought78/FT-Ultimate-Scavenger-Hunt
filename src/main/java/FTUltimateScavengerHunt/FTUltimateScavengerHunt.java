@@ -5,6 +5,8 @@ import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -14,10 +16,13 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.storage.LevelResource;
+import net.minecraft.world.phys.AABB;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.ItemPickupEvent;
@@ -25,6 +30,7 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerXpEvent.XpChange;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.event.world.ChunkEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -40,6 +46,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import javax.swing.text.html.parser.Entity;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -127,14 +136,49 @@ public class FTUltimateScavengerHunt {
         Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
         Path checklistPath = worldFolderPath.resolve("master_checklist.json");
 
-        if (!Files.exists(checklistPath)) {
-        	isHuntStarted = false;
-        }        	
-        huntWinner = null;
-        masterChecklist = new HashSet<>();
-        playerProgress = new HashMap<>();
+   
+        isHuntStarted = Files.exists(checklistPath);   	
         
-        if (isHuntStarted) setWorldBorder(world, EXPANDED_BORDER_SIZE);
+        if (isHuntStarted) {
+        	setWorldBorder(world, EXPANDED_BORDER_SIZE);
+        }else {
+        	deleteNonPlayerEntities(world);
+        }
+    }
+    
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        // Clear data structures to avoid stale state
+        isHuntStarted = false;
+        huntWinner = null;
+        masterChecklist.clear();
+        playerProgress.clear();
+    }
+    
+    public static void deleteNonPlayerEntities(ServerLevel world) {
+        // Iterate through all entities in the world and remove non-player entities
+    	
+    	Iterable<net.minecraft.world.entity.Entity> entities = world.getAllEntities();
+    	
+        entities.forEach(entity -> {
+            // If the entity is not a player, remove it
+        	
+        	if(entity != null) {
+	            if (!(entity instanceof Player)) {
+	                entity.discard(); // Remove non-player entities
+	            }
+        	}
+        });
+    }
+
+    @SubscribeEvent
+    public static void onEntityJoinWorld(EntityJoinWorldEvent event) {
+    	if (isHuntStarted) return;
+    	
+        // Prevent non-player entities from joining the world
+        if (!(event.getEntity() instanceof Player)) {
+            event.setCanceled(true); // Cancel the entity from joining
+        }
     }
 
     
