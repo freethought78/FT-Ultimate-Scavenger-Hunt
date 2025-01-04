@@ -21,8 +21,8 @@ public class ScavengerHuntPanel extends Screen {
 	@SuppressWarnings("unused")
 	private static final Logger LOGGER = LogUtils.getLogger();
 
-    private final UUID playerId;
-    private final Map<String, Boolean> playerProgress;
+    private UUID playerId;
+    private Map<String, Boolean> playerProgress;
     private final int columns = 3;  // You can adjust this number based on the screen width
 
     private int scrollOffset = 0;  // To track vertical scrolling
@@ -43,7 +43,7 @@ public class ScavengerHuntPanel extends Screen {
     public ScavengerHuntPanel() {
         super(new TextComponent("Scavenger Hunt Progress"));
         this.playerId = Minecraft.getInstance().player.getUUID();  // Get the player's UUID
-        this.playerProgress = FTUltimateScavengerHunt.playerProgress.get(playerId);  // Get the player's progress
+        this.playerProgress = PlayerProgressManager.masterPlayerProgress.get(playerId);  // Get the player's progress
     }
 
     @Override

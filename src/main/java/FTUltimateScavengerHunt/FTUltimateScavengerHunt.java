@@ -68,17 +68,14 @@ public class FTUltimateScavengerHunt {
             () -> new BlockItem(FT_QUEST_HUB_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    //public static Map<String, Boolean> itemChecklist = new HashMap<>();
     
     // Master checklist for the current world
     public static Set<String> masterChecklist = new HashSet<>();
 
-    // Player progress (UUID -> checklist progress)
-    public static Map<UUID, Map<String, Boolean>> playerProgress = new HashMap<>();
-    
+
     public static boolean isHuntStarted = false;
     public static UUID huntWinner = null; 
-    
+
     // Set the initial world border size (in blocks, adjust as needed)
     private static final int INITIAL_BORDER_SIZE = 128; // 128 blocks (8x8 chunks)
     public static final int EXPANDED_BORDER_SIZE = 1000000; // World border when the hunt starts
@@ -129,6 +126,8 @@ public class FTUltimateScavengerHunt {
         }else {
         	deleteNonPlayerEntities(world);
         }
+
+        // Load player progress
     }
     
     @SubscribeEvent
@@ -137,17 +136,16 @@ public class FTUltimateScavengerHunt {
         isHuntStarted = false;
         huntWinner = null;
         masterChecklist.clear();
-        playerProgress.clear();
+        
+        PlayerProgressManager.cleanUpForShutDown(event.getServer());
     }
     
     public static void deleteNonPlayerEntities(ServerLevel world) {
         // Iterate through all entities in the world and remove non-player entities
-    	
     	Iterable<net.minecraft.world.entity.Entity> entities = world.getAllEntities();
     	
         entities.forEach(entity -> {
             // If the entity is not a player, remove it
-        	
         	if(entity != null) {
 	            if (!(entity instanceof Player)) {
 	                entity.discard(); // Remove non-player entities
@@ -166,10 +164,6 @@ public class FTUltimateScavengerHunt {
         }
     }
 
-    
-
-
-    
     // Inside onPlayerLoggedIn method (modified)
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
@@ -179,11 +173,11 @@ public class FTUltimateScavengerHunt {
             event.setCanceled(true);  // Optionally cancel the login event if you want to block further interaction
         } else if (isHuntStarted) {
             // Initialize player progress if the hunt is started and not yet ended
-            initializePlayerProgress(event.getPlayer().getServer(), event.getPlayer().getUUID());
+            PlayerProgressManager.initializePlayerProgress(event.getPlayer().getUUID(), event.getPlayer().getServer());
         }
     }
     
- // Method to mark a player as the winner and end the hunt
+    // Method to mark a player as the winner and end the hunt
     public static void endHunt(MinecraftServer server, UUID winnerUUID) {
         if (huntWinner == null) {
             huntWinner = winnerUUID;
@@ -195,14 +189,13 @@ public class FTUltimateScavengerHunt {
             String winnerName = server.getPlayerList().getPlayer(winnerUUID).getName().getString();
 
             // Create the message
-            TextComponent message = new TextComponent("The scavenger hunt has ended! Congatulations to " + winnerName + ", you are the winner!");
+            TextComponent message = new TextComponent("The scavenger hunt has ended! Congratulations to " + winnerName + ", you are the winner!");
 
             // Broadcast the message to all players in the default chat type
             server.getPlayerList().broadcastMessage(message, ChatType.SYSTEM, null);
         }
     }
 
-    
     private static void saveWinnerToFile(MinecraftServer server, UUID winnerUUID) {
         Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
         Path winnerFilePath = worldFolderPath.resolve("hunt_winner.json");
@@ -215,7 +208,7 @@ public class FTUltimateScavengerHunt {
             LOGGER.error("Failed to save hunt winner UUID", e);
         }
     }
-   
+
     private static void saveMasterChecklist(MinecraftServer server) {
         // Save `masterChecklist` within the world folder
         Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
@@ -229,8 +222,8 @@ public class FTUltimateScavengerHunt {
             LOGGER.error("Failed to save master checklist", e);
         }
     }
-    
-    private static Set<String> loadMasterChecklist(MinecraftServer server) {
+
+    static Set<String> loadMasterChecklist(MinecraftServer server) {
         Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
         Path checklistPath = worldFolderPath.resolve("master_checklist.json");
         Path winnerFilePath = worldFolderPath.resolve("hunt_winner.json");
@@ -259,84 +252,6 @@ public class FTUltimateScavengerHunt {
         return new HashSet<>();
     }
 
-    
-    public static void initializePlayerProgress(MinecraftServer server, UUID playerId) {
-        if (!playerProgress.containsKey(playerId)) {
-            // Load the player's progress by passing in the server instance
-            Map<String, Boolean> progress = loadPlayerProgress(server, playerId);
-
-            if (progress.isEmpty()) {
-                // Initialize progress with all false values
-                progress = new HashMap<>();
-                for (String item : masterChecklist) {
-                    progress.put(item, false);
-                }
-                
-                //Give the player a quest hub block
-                ServerPlayer player = server.getPlayerList().getPlayer(playerId);
-                ItemStack questblock = new ItemStack(FTUltimateScavengerHunt.FT_QUEST_HUB_BLOCK_ITEM.get());
-                
-                player.getInventory().add(questblock);
-                player.sendMessage(new TextComponent("You have received an FT Quest Hub Block to begin your scavenger hunt!"), playerId);
-                
-                // Save the player's progress in the correct world folder
-                savePlayerProgress(server, playerId, progress);
-            }
-
-            playerProgress.put(playerId, progress);
-        }
-    }
-    
-    static void savePlayerProgress(MinecraftServer server, UUID playerId, Map<String, Boolean> progress) {
-        // Get the current world's path
-        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
-        
-        // Create the path for the player's progress file inside the world folder
-        Path progressFolderPath = worldFolderPath.resolve("player_progress");
-        
-        try {
-            // Ensure the folder exists
-            Files.createDirectories(progressFolderPath); // This may throw IOException
-            
-            // Now save the player's progress in the corresponding file
-            Path playerProgressPath = progressFolderPath.resolve(playerId.toString() + ".json");
-
-            // Serialize `progress` to a JSON file named after the player UUID
-            Files.write(playerProgressPath, new Gson().toJson(progress).getBytes());
-            LOGGER.info("Player progress saved to " + playerProgressPath);
-        } catch (IOException e) {
-            LOGGER.error("Failed to create directories or save progress for player " + playerId, e);
-        }
-    }
-    
-    private static Map<String, Boolean> loadPlayerProgress(MinecraftServer server, UUID playerId) {
-        // Get the current world's path
-        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
-        
-        // Create the path for the player's progress file inside the world folder
-        Path progressFolderPath = worldFolderPath.resolve("player_progress");
-        
-        // Construct the path for the specific player's progress file
-        Path playerProgressPath = progressFolderPath.resolve(playerId.toString() + ".json");
-        
-        // Check if the file exists
-        if (Files.exists(playerProgressPath)) {
-            try {
-                // Read the file content into a string
-                String json = new String(Files.readAllBytes(playerProgressPath));
-                
-                // Deserialize the JSON into a Map<String, Boolean> and return it
-                return new Gson().fromJson(json, new TypeToken<Map<String, Boolean>>() {}.getType());
-            } catch (IOException e) {
-                LOGGER.error("Failed to load progress for player " + playerId, e);
-            }
-        }
-        
-        // If the file doesn't exist or if reading fails, return an empty progress map
-        return new HashMap<>();
-    }
-
-    
     public static void initializeMasterChecklist(MinecraftServer server) {
         // Try to load the master checklist from file first
         Set<String> loadedChecklist = loadMasterChecklist(server);
@@ -349,7 +264,7 @@ public class FTUltimateScavengerHunt {
             
             // Initialize progress for all logged-in players and give them the FT Quest Hub Block
             for (ServerPlayer loggedInPlayer : server.getPlayerList().getPlayers()) {
-                FTUltimateScavengerHunt.initializePlayerProgress(server, loggedInPlayer.getUUID());
+                PlayerProgressManager.initializePlayerProgress(loggedInPlayer.getUUID(), server);
             }
             
         } else {
@@ -362,21 +277,20 @@ public class FTUltimateScavengerHunt {
     }
 
     private static void generateMasterChecklist(MinecraftServer server) {
-    	//define how many items are in the scavenger hunt's checklist
-    	int checklistSize = 10;
-    	
-        //Get a list of all recipes in the server across all mods including vanilla
-    	Set<String> recipeOutputs = generateRecipeList(server); // List to store recipe outputs
-
-    	// Convert recipeOutputs to a list, shuffle it, and add correct number of items to the master checklist for the scavenger hunt
-    	List<String> recipeList = new ArrayList<>(recipeOutputs);
-    	Collections.shuffle(recipeList);
-    	masterChecklist.addAll(recipeList.subList(0, Math.min(checklistSize, recipeList.size())));
-
+        //define how many items are in the scavenger hunt's checklist
+        int checklistSize = 10;
         
+        //Get a list of all recipes in the server across all mods including vanilla
+        Set<String> recipeOutputs = generateRecipeList(server); // List to store recipe outputs
+
+        // Convert recipeOutputs to a list, shuffle it, and add correct number of items to the master checklist for the scavenger hunt
+        List<String> recipeList = new ArrayList<>(recipeOutputs);
+        Collections.shuffle(recipeList);
+        masterChecklist.addAll(recipeList.subList(0, Math.min(checklistSize, recipeList.size())));
+
         LOGGER.info("$$$" + masterChecklist.toString());
     }
-    
+
     private static Set<String> generateRecipeList(MinecraftServer server) {
         RecipeManager recipeManager = server.getRecipeManager(); // Get recipe manager
         Set<String> recipeOutputs = new HashSet<>(); // Initialize the set to store recipe outputs
@@ -391,5 +305,4 @@ public class FTUltimateScavengerHunt {
 
         return recipeOutputs;
     }
-
 }
