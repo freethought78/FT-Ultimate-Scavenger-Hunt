@@ -5,7 +5,6 @@ import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -14,25 +13,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.border.WorldBorder;
-import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.storage.LevelResource;
-import net.minecraft.world.phys.AABB;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
-import net.minecraftforge.event.entity.item.ItemTossEvent;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingSpawnEvent;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent.ItemPickupEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.entity.player.PlayerXpEvent.XpChange;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.event.world.BlockEvent;
-import net.minecraftforge.event.world.ChunkEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -46,8 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-
-import javax.swing.text.html.parser.Entity;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -182,123 +167,7 @@ public class FTUltimateScavengerHunt {
     }
 
     
-    // Prevent block breaking before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot break blocks until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
-        }
-    }
 
-    // Prevent item pickups before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onItemPickup(ItemPickupEvent event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot pick up items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
-        }
-    }
-
-    // Prevent XP gain before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onXPChange(XpChange event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getEntity().sendMessage(new TextComponent("You cannot gain XP until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
-        }
-    }
-
-    // Prevent player damage before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onPlayerDamage(LivingDamageEvent event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getEntity().sendMessage(new TextComponent("You cannot take damage until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
-        }
-    }
-
-    // Prevent player interactions with the world before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onPlayerInteract(PlayerInteractEvent event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot interact with the world until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
-        }
-    }
-
-    // Prevent player attacks on entities before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onPlayerAttackEntity(AttackEntityEvent event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot attack entities until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
-        }
-    }
-
-    // Prevent block placement before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getEntity().sendMessage(new TextComponent("You cannot place blocks until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
-        }
-    }
-
-    // Prevent item dropping before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onItemDrop(ItemTossEvent event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot drop items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
-        }
-    }
-
-    // Prevent item usage before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onItemUse(PlayerInteractEvent.RightClickItem event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot use items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
-        }
-    }
-
-    // Prevent entity interactions before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot interact with entities until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
-        }
-    }
-
-    // Prevent crafting before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onItemCraft(PlayerEvent.ItemCraftedEvent event) {
-        if (!isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot craft items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
-        }
-    }
-
-    
-    // Disable the passage of time until the hunt has started
-    private static long frozenTime = -1;  // Variable to store the frozen time
-    @SubscribeEvent
-    public static void onWorldTick(TickEvent.WorldTickEvent event) {
-        // Check if the world is a ServerLevel and if the hunt hasn't started
-        if (!isHuntStarted && event.world instanceof ServerLevel) {
-            ServerLevel serverWorld = (ServerLevel) event.world;
-
-            // If the time hasn't been frozen yet, freeze it at the current day time
-            if (frozenTime == -1) {
-                frozenTime = serverWorld.getDayTime();  // Capture the current time when the hunt starts
-            }
-
-            // Set the world time to the frozen time to keep it from advancing
-            serverWorld.setDayTime(frozenTime);
-        }
-    }
 
     
     // Inside onPlayerLoggedIn method (modified)
