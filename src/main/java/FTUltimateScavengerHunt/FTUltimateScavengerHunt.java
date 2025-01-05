@@ -1,14 +1,21 @@
 package FTUltimateScavengerHunt;
 
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.FireworkRocketEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.FireworkRocketItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.border.WorldBorder;
@@ -54,6 +61,7 @@ public class FTUltimateScavengerHunt {
     public static final RegistryObject<BlockItem> FT_QUEST_HUB_BLOCK_ITEM = ITEMS.register("ft_quest_hub",
             () -> new BlockItem(FT_QUEST_HUB_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
 
+    
     public static final Logger LOGGER = LogUtils.getLogger();
     
     // Master checklist for the current world
@@ -75,6 +83,7 @@ public class FTUltimateScavengerHunt {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         MinecraftForge.EVENT_BUS.register(this);
+        MinecraftForge.EVENT_BUS.register(TaskScheduler.class);
 
         // Register blocks and items
         BLOCKS.register(modEventBus);
@@ -172,7 +181,7 @@ public class FTUltimateScavengerHunt {
         }
     }
     
-    // Method to mark a player as the winner and end the hunt
+ // Method to mark a player as the winner and end the hunt
     public static void endHunt(MinecraftServer server, String winnerName) {
         if (huntWinner == null) {
             huntWinner = winnerName;
@@ -185,8 +194,94 @@ public class FTUltimateScavengerHunt {
 
             // Broadcast the message to all players in the default chat type
             server.getPlayerList().broadcastMessage(message, ChatType.SYSTEM, null);
+
+            // Trigger fireworks for all players
+            launchFireworksForPlayers(server);
         }
     }
+
+    // Method to launch fireworks around every player
+    private static void launchFireworksForPlayers(MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            // Start a fireworks show around the player
+            startFireworksShow(player);
+        }
+    }
+
+    // Method to start a fireworks show around a single player
+    private static void startFireworksShow(ServerPlayer player) {
+        ServerLevel level = player.getLevel();
+        Random random = new Random();
+
+        // Schedule fireworks for 10 seconds
+        int durationInTicks = 200; // 10 seconds (20 ticks per second)
+        int interval = 10; // Launch every 10 ticks
+
+        for (int tick = 0; tick < durationInTicks; tick += interval) {
+            final int delay = tick;  // Capture the correct delay for each scheduled task
+            TaskScheduler.scheduleTask(delay, () -> {
+                // Spawn fireworks around the player
+                for (int dx = -5; dx <= 5; dx += 2) {
+                    for (int dz = -5; dz <= 5; dz += 2) {  // Fix loop condition
+                        double offsetX = dx + random.nextDouble() - 0.5;
+                        double offsetZ = dz + random.nextDouble() - 0.5;
+
+                        FireworkRocketEntity firework = new FireworkRocketEntity(
+                            level,
+                            player.getX() + offsetX,
+                            player.getY() + 1 + random.nextDouble(), // Slight random height variation
+                            player.getZ() + offsetZ,
+                            createRandomFireworkItem(random)
+                        );
+
+                        level.addFreshEntity(firework);
+                    }
+                }
+            });
+        }
+    }
+
+
+
+    // Method to create a firework item with random properties
+    private static ItemStack createRandomFireworkItem(Random random) {
+        ItemStack fireworkItem = new ItemStack(Items.FIREWORK_ROCKET);
+
+        CompoundTag fireworkTag = new CompoundTag();
+        fireworkTag.putInt("Flight", random.nextInt(3) + 1); // Random flight duration (1 to 3)
+
+        // Create explosion data
+        ListTag explosions = new ListTag();
+        int explosionCount = random.nextInt(3) + 1; // 1 to 3 explosions per firework
+
+        for (int i = 0; i < explosionCount; i++) {
+            CompoundTag explosion = new CompoundTag();
+            explosion.putIntArray("Colors", getRandomColors(random, random.nextInt(3) + 1)); // 1 to 3 random colors
+            explosion.putIntArray("FadeColors", getRandomColors(random, random.nextInt(2) + 1)); // 1 to 2 fade colors
+            explosion.putByte("Type", (byte) random.nextInt(5)); // Random shape (0 to 4)
+            explosion.putBoolean("Flicker", random.nextBoolean()); // Random flicker
+            explosion.putBoolean("Trail", random.nextBoolean()); // Random trail
+
+            explosions.add(explosion);
+        }
+
+        fireworkTag.put("Explosions", explosions);
+        fireworkItem.getOrCreateTag().put("Fireworks", fireworkTag);
+
+        return fireworkItem;
+    }
+
+    // Helper method to generate random colors
+    private static int[] getRandomColors(Random random, int count) {
+        int[] colors = new int[count];
+        for (int i = 0; i < count; i++) {
+            colors[i] = random.nextInt(0xFFFFFF); // Random RGB color
+        }
+        return colors;
+    }
+
+
+
 
     private static void saveWinnerToFile(MinecraftServer server, String winnerName) {
         Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
