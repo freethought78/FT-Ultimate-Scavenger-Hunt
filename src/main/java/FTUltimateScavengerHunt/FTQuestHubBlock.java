@@ -3,7 +3,6 @@ package FTUltimateScavengerHunt;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.slf4j.Logger;
 
@@ -27,6 +26,7 @@ import net.minecraft.world.phys.BlockHitResult;
 
 public class FTQuestHubBlock extends Block {
 
+    @SuppressWarnings("unused")
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public FTQuestHubBlock() {
@@ -51,9 +51,9 @@ public class FTQuestHubBlock extends Block {
         // Get the item the player is holding
         ItemStack heldItem = player.getItemInHand(hand);
         String itemName = heldItem.getDisplayName().getString();
-        UUID playerID = player.getUUID();
+        String playerName = player.getName().getString();
 
-        // On the client side only, when the block is right clicked with an empty hand, display the scavenger hunt's progress panel
+        // On the client side only, when the block is right-clicked with an empty hand, display the scavenger hunt's progress panel
         if (level.isClientSide()) {
             if (heldItem.isEmpty()) {
                 Minecraft.getInstance().setScreen(new ScavengerHuntPanel());
@@ -68,25 +68,24 @@ public class FTQuestHubBlock extends Block {
             }
 
             // Check if the item is part of the scavenger hunt checklist
-            if (!PlayerProgressManager.isItemInChecklist(playerID, itemName)) {
-                player.sendMessage(new TextComponent(itemName + " is not part of the scavenger hunt."), playerID);
+            if (!PlayerProgressManager.isItemInChecklist(playerName, itemName)) {
+                player.sendMessage(new TextComponent(itemName + " is not part of the scavenger hunt."), player.getUUID());
                 return InteractionResult.SUCCESS;
             }
 
             // Check if the item has already been completed
-            if (!PlayerProgressManager.isItemComplete(playerID, itemName)) {
-                PlayerProgressManager.markItemComplete(player.getServer(), playerID, itemName);
+            if (!PlayerProgressManager.isItemComplete(playerName, itemName)) {
+                PlayerProgressManager.markItemComplete(player.getServer(), playerName, itemName);
                 heldItem.shrink(1); // Decrease the item stack count
-                player.sendMessage(new TextComponent(itemName + " is now complete!"), playerID);
+                player.sendMessage(new TextComponent(itemName + " is now complete!"), player.getUUID());
 
                 // Calculate and display the player's progress
-                Map<String, Boolean> progress = PlayerProgressManager.masterPlayerProgress.get(playerID);
+                Map<String, Boolean> progress = PlayerProgressManager.masterPlayerProgress.get(playerName);
                 long itemsTurnedIn = progress.values().stream().filter(Boolean::booleanValue).count();
                 long totalItems = FTUltimateScavengerHunt.masterChecklist.size();
                 long itemsRemaining = totalItems - itemsTurnedIn;
 
                 // Broadcast the item turn-in to the server
-                String playerName = player.getName().getString();
                 String broadcastMessage = String.format(
                     "%s has turned in %s! They have now turned in %d out of %d items and have %d more to go!",
                     playerName, itemName, itemsTurnedIn, totalItems, itemsRemaining
@@ -94,13 +93,13 @@ public class FTQuestHubBlock extends Block {
                 player.getServer().getPlayerList().broadcastMessage(new TextComponent(broadcastMessage), ChatType.SYSTEM, null);
 
                 // Check if the player has completed the scavenger hunt and declare them as the winner
-                if (PlayerProgressManager.isPlayerComplete(playerID)) {
-                    FTUltimateScavengerHunt.endHunt(player.getServer(), playerID);
+                if (PlayerProgressManager.isPlayerComplete(playerName)) {
+                    FTUltimateScavengerHunt.endHunt(player.getServer(), playerName);
                 }
 
                 return InteractionResult.SUCCESS;
             } else {
-                player.sendMessage(new TextComponent(itemName + " was already turned in."), playerID);
+                player.sendMessage(new TextComponent(itemName + " was already turned in."), player.getUUID());
                 return InteractionResult.SUCCESS;
             }
         }
@@ -110,8 +109,8 @@ public class FTQuestHubBlock extends Block {
 
     // Utility methods using PlayerProgressManager
 
-    public static boolean isItemComplete(UUID playerId, String itemName) {
-        // This method now uses PlayerProgressManager's isItemComplete method
-        return PlayerProgressManager.isItemComplete(playerId, itemName);
+    public static boolean isItemComplete(String playerName, String itemName) {
+        // This method now uses PlayerProgressManager's isItemComplete method with player name
+        return PlayerProgressManager.isItemComplete(playerName, itemName);
     }
 }

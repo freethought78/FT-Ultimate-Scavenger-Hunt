@@ -4,15 +4,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,7 +18,7 @@ import net.minecraft.world.level.storage.LevelResource;
 
 public class PlayerProgressManager {
     // Master map to hold all player progress
-    static ConcurrentHashMap<UUID, ConcurrentHashMap<String, Boolean>> masterPlayerProgress = new ConcurrentHashMap<>();
+    static ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>> masterPlayerProgress = new ConcurrentHashMap<>();
 
     private static final Gson gson = new Gson(); // Gson instance for serialization and deserialization
 
@@ -47,12 +42,12 @@ public class PlayerProgressManager {
         for (File file : progressFolder.listFiles()) {
             if (file.isFile() && file.getName().endsWith(".json")) {
                 try {
-                    // Get the player UUID from the file name
-                    UUID playerId = UUID.fromString(file.getName().replace(".json", ""));
+                    // Get the player name from the file name
+                    String playerName = file.getName().replace(".json", "");
                     // Load the player's progress from the file
-                    ConcurrentHashMap<String, Boolean> progress = loadPlayerProgressFromFile(server, playerId);
+                    ConcurrentHashMap<String, Boolean> progress = loadPlayerProgressFromFile(server, playerName);
                     // Add the loaded progress to the master map
-                    masterPlayerProgress.put(playerId, progress);
+                    masterPlayerProgress.put(playerName, progress);
                 } catch (Exception e) {
                     System.err.println("Failed to load progress for file: " + file.getName());
                     e.printStackTrace();
@@ -63,11 +58,11 @@ public class PlayerProgressManager {
 
 
  // Load the player's progress from a file
-    public static ConcurrentHashMap<String, Boolean> loadPlayerProgressFromFile(MinecraftServer server, UUID playerId) {
+    public static ConcurrentHashMap<String, Boolean> loadPlayerProgressFromFile(MinecraftServer server, String playerName) {
         String worldName = server.getWorldData().getLevelName();
         LevelResource playerProgressDir = new LevelResource(worldName + "/playerprogress");
         File progressFolder = server.getWorldPath(playerProgressDir).toFile();
-        File progressFile = new File(progressFolder, playerId + ".json");
+        File progressFile = new File(progressFolder, playerName + ".json");
 
         if (progressFile.exists()) {
             try (FileReader reader = new FileReader(progressFile)) {
@@ -76,7 +71,7 @@ public class PlayerProgressManager {
                 if (progress != null) {
                     return progress;  // Return the loaded progress
                 } else {
-                    System.err.println("Error: Failed to load progress for player: " + playerId);
+                    System.err.println("Error: Failed to load progress for player: " + playerName);
                 }
             } catch (IOException e) {
                 System.err.println("Error reading player progress file: " + progressFile.getPath());
@@ -84,7 +79,7 @@ public class PlayerProgressManager {
             }
         } else {
             // Handle the case where no progress file exists
-            System.err.println("No progress file found for player: " + playerId);
+            System.err.println("No progress file found for player: " + playerName);
         }
 
         return null;  // Return null if no progress is found or an error occurred
@@ -93,11 +88,11 @@ public class PlayerProgressManager {
 
 
     // Save the player's progress to a file
-    public static void savePlayerProgressToFile(UUID playerId, MinecraftServer server) {
-        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerId);
+    public static void savePlayerProgressToFile(String playerName, MinecraftServer server) {
+        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerName);
 
         if (progress == null) {
-            System.err.println("No progress found for player: " + playerId);
+            System.err.println("No progress found for player: " + playerName);
             return;
         }
 
@@ -116,13 +111,13 @@ public class PlayerProgressManager {
         }
 
         // Define the player progress file
-        File progressFile = new File(progressFolder, playerId + ".json");
+        File progressFile = new File(progressFolder, playerName + ".json");
 
         try (FileWriter writer = new FileWriter(progressFile)) {
             // Serialize the progress map and write it to the file
             gson.toJson(progress, writer);
         } catch (IOException e) {
-            System.err.println("Error saving player progress for: " + playerId);
+            System.err.println("Error saving player progress for: " + playerName);
             e.printStackTrace();
         }
     }
@@ -132,7 +127,7 @@ public class PlayerProgressManager {
 
 
 
-    public static void initializePlayerProgress(UUID playerId, MinecraftServer server) {
+    public static void initializePlayerProgress(String playerName, MinecraftServer server) {
         // Get the world name
         String worldName = server.getWorldData().getLevelName();
 
@@ -146,10 +141,10 @@ public class PlayerProgressManager {
         }
 
         // Define the player's progress file
-        File progressFile = new File(progressFolder, playerId + ".json");
+        File progressFile = new File(progressFolder, playerName + ".json");
 
         // Load player progress from file, if it exists
-        ConcurrentHashMap<String, Boolean> existingProgress = loadPlayerProgressFromFile(server, playerId);
+        ConcurrentHashMap<String, Boolean> existingProgress = loadPlayerProgressFromFile(server, playerName);
 
         // If no existing progress is found, initialize it
         if (existingProgress == null) {
@@ -164,19 +159,19 @@ public class PlayerProgressManager {
             }
 
             // Add the player's progress to the master map
-            masterPlayerProgress.put(playerId, progress);
+            masterPlayerProgress.put(playerName, progress);
 
             // Save the initial progress to the player's file
-            savePlayerProgressToFile(playerId, server);
+            savePlayerProgressToFile(playerName, server);
 
             // Give the FTQuestHubBlock to the player since it's their first time
-            ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+            ServerPlayer player = server.getPlayerList().getPlayerByName(playerName);
             if (player != null) {
                 giveFTQuestHubBlockToPlayer(player);
             }
         } else {
             // If the progress file exists, update the global map with the loaded progress
-            masterPlayerProgress.put(playerId, existingProgress);
+            masterPlayerProgress.put(playerName, existingProgress);
         }
     }
 
@@ -197,64 +192,50 @@ public class PlayerProgressManager {
         }
     }
 
-    
-    
-
- // Example: Method to update progress when an item is turned in
-    public static void updatePlayerProgress(UUID playerId, String item, boolean turnedIn, MinecraftServer server) {
-        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerId);
-        if (progress == null) {
-            // If no progress is found, initialize it
-            initializePlayerProgress(playerId, server);
-            progress = masterPlayerProgress.get(playerId);
-        }
-        
-        // Update the progress for the item
-        progress.put(item, turnedIn);
-        // Save the progress after the update
-        savePlayerProgressToFile(playerId, server);  // Ensure the server instance is passed
-    }
-
     // Utility: Check the progress of a player
-    public static boolean getPlayerProgress(UUID playerId, String item) {
-        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerId);
+    public static boolean getPlayerProgress(String playerName, String item) {
+        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerName);
         return progress != null && progress.getOrDefault(item, false);
     }
     
     // Method to save progress for all players to their individual files
     public static void saveAllPlayerProgressToFiles(MinecraftServer server) {
         // Iterate over all players in the master progress map and save their progress
-        for (UUID playerId : masterPlayerProgress.keySet()) {
-            savePlayerProgressToFile(playerId, server);
+        for (String playerName : masterPlayerProgress.keySet()) {
+            savePlayerProgressToFile(playerName, server);
         }
     }
     
  // Method to check if an item is part of the player's progress checklist
-    public static boolean isItemInChecklist(UUID playerId, String itemName) {
-        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerId);
+    public static boolean isItemInChecklist(String playerName, String itemName) {
+        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerName);
         return progress != null && progress.containsKey(itemName);
     }
     
  // Method to check if an item is complete for the player
-    public static boolean isItemComplete(UUID playerId, String itemName) {
-        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerId);
+    public static boolean isItemComplete(String playerName, String itemName) {
+        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerName);
         return progress != null && progress.getOrDefault(itemName, false);
     }
     
  // Method to mark an item as complete for the player
-    public static void markItemComplete(MinecraftServer server, UUID playerId, String itemName) {
-        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerId);
+    public static void markItemComplete(MinecraftServer server, String playerName, String itemName) {
+        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerName);
         if (progress != null && progress.containsKey(itemName) && !progress.get(itemName)) {
             // Mark the item as completed
             progress.put(itemName, true);
+            
+            //Update Leader Board
+            LeaderboardManager.updateLeaderboard(server);
+            
             // Save the updated progress to file
-            savePlayerProgressToFile(playerId, server);
+            savePlayerProgressToFile(playerName, server);
         }
     }
     
  // Method to check if the player has completed all items in the scavenger hunt
-    public static boolean isPlayerComplete(UUID playerId) {
-        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerId);
+    public static boolean isPlayerComplete(String playerName) {
+        ConcurrentHashMap<String, Boolean> progress = masterPlayerProgress.get(playerName);
 
         // Ensure progress exists for the player
         if (progress != null) {

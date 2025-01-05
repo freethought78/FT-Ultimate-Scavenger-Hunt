@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.logging.LogUtils;
 
@@ -15,7 +16,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraft.world.level.Level;
-
+import java.util.List;
 
 @Mod.EventBusSubscriber(modid = FTUltimateScavengerHunt.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class ModCommands {
@@ -31,8 +32,6 @@ public class ModCommands {
             registerCommands(event.getServer());
         }
     }
-
-
 
     public static void registerCommands(MinecraftServer server) {
         // Create the /starthunt command
@@ -87,9 +86,56 @@ public class ModCommands {
                 return Command.SINGLE_SUCCESS;
             });
 
+     // Create the /leaderboard command
+        LiteralArgumentBuilder<CommandSourceStack> leaderboardCommand = Commands.literal("leaderboard")
+            .executes(context -> {
+                ServerPlayer player = (ServerPlayer) context.getSource().getEntity();
+                List<LeaderboardManager.LeaderboardEntry> leaderboard = LeaderboardManager.getLeaderboard();
+
+                if (leaderboard.isEmpty()) {
+                    context.getSource().sendSuccess(new TextComponent("The leaderboard is currently empty."), false);
+                    return Command.SINGLE_SUCCESS;
+                }
+
+                // Build the leaderboard display message
+                StringBuilder leaderboardMessage = new StringBuilder("Leaderboard:\n");
+                int rank = 1;
+                for (LeaderboardManager.LeaderboardEntry entry : leaderboard) {
+                    // Use the correct field name from LeaderboardEntry (e.g., playerName)
+                    leaderboardMessage.append(String.format("%d. %s - %d completions\n", rank++, entry.playerName, entry.completionCount));
+                }
+
+                // Send the leaderboard message to the player
+                player.sendMessage(new TextComponent(leaderboardMessage.toString()), player.getUUID());
+
+                return Command.SINGLE_SUCCESS;
+            });
+
+
+        // Create the /isitemcomplete command
+        LiteralArgumentBuilder<CommandSourceStack> isItemCompleteCommand = Commands.literal("isitemcomplete")
+            .then(Commands.argument("itemName", StringArgumentType.word())
+                .executes(context -> {
+                    ServerPlayer player = (ServerPlayer) context.getSource().getEntity();
+                    String itemName = StringArgumentType.getString(context, "itemName");
+
+                    // Check if the item is in the checklist and if it's completed
+                    boolean isComplete = PlayerProgressManager.isItemComplete(player.getName().getString(), itemName);
+
+                    if (isComplete) {
+                        context.getSource().sendSuccess(new TextComponent("You have completed the item: " + itemName), false);
+                    } else {
+                        context.getSource().sendSuccess(new TextComponent("You have not completed the item: " + itemName), false);
+                    }
+
+                    return Command.SINGLE_SUCCESS;
+                })
+            );
+
         // Register the commands with the server's dispatcher
         server.getCommands().getDispatcher().register(startHuntCommand);
         server.getCommands().getDispatcher().register(respawnCommand);
+        server.getCommands().getDispatcher().register(leaderboardCommand);  // Register the leaderboard command
+        server.getCommands().getDispatcher().register(isItemCompleteCommand);  // Register the new isitemcomplete command
     }
-
 }

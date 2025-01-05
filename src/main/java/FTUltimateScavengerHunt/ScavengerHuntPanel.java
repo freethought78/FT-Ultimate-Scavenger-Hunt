@@ -21,7 +21,7 @@ public class ScavengerHuntPanel extends Screen {
 	@SuppressWarnings("unused")
 	private static final Logger LOGGER = LogUtils.getLogger();
 
-    private UUID playerId;
+    private String playerName;
     private Map<String, Boolean> playerProgress;
     private final int columns = 3;  // You can adjust this number based on the screen width
 
@@ -42,8 +42,8 @@ public class ScavengerHuntPanel extends Screen {
     @SuppressWarnings("resource")
     public ScavengerHuntPanel() {
         super(new TextComponent("Scavenger Hunt Progress"));
-        this.playerId = Minecraft.getInstance().player.getUUID();  // Get the player's UUID
-        this.playerProgress = PlayerProgressManager.masterPlayerProgress.get(playerId);  // Get the player's progress
+        this.playerName = Minecraft.getInstance().player.getName().getString();  // Get the player's UUID
+        this.playerProgress = PlayerProgressManager.masterPlayerProgress.get(playerName);  // Get the player's progress
     }
 
     @Override
@@ -69,40 +69,35 @@ public class ScavengerHuntPanel extends Screen {
 
     @Override
     public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTicks) {
-    	
-    	int screenWidth = Minecraft.getInstance().getWindow().getWidth();
-    	int screenHeight = Minecraft.getInstance().getWindow().getHeight();
-    	
-    	
+        int screenWidth = Minecraft.getInstance().getWindow().getWidth();
+        int screenHeight = Minecraft.getInstance().getWindow().getHeight();
+
         // Normalize the coordinates and size based on screen resolution
         float normalizedX = (float) MARGIN_SIDES / this.width;
         float normalizedY = (float) (this.height - MARGIN_BOTTOM) / this.height;
-        normalizedY = Math.abs(1-normalizedY);
+        normalizedY = Math.abs(1 - normalizedY);
         float normalizedWidth = (float) panelWidth / this.width;
         float normalizedHeight = (float) panelHeight / this.height;
-        
+
         // Now scale them to the actual screen resolution
-        int scissorX = (int)(normalizedX * screenWidth);
-        int scissorY = (int)(normalizedY * screenHeight);  // Flip Y coordinate
-        int scissorWidth = (int)(normalizedWidth * screenWidth);
-        int scissorHeight = (int)(normalizedHeight * screenHeight);
-    	
+        int scissorX = (int) (normalizedX * screenWidth);
+        int scissorY = (int) (normalizedY * screenHeight);  // Flip Y coordinate
+        int scissorWidth = (int) (normalizedWidth * screenWidth);
+        int scissorHeight = (int) (normalizedHeight * screenHeight);
+
         // Enable the scissor test with the correct screen-space coordinates
         RenderSystem.enableScissor(scissorX, scissorY, scissorWidth, scissorHeight);
-    	
+
         // Render the background
         this.renderBackground(poseStack);
 
-        // Adjust title position based on scrollOffset (larger vertical spacing for title)
-     // Calculate the width of the text
+        // Title rendering (no change)
         int textWidth = this.font.width("Scavenger Hunt Progress");
-
-        // Center the text in the panel (horizontally)
         int titleX = (this.width / 2) - (textWidth / 2);
-        int titleY = MARGIN_TOP + 10 - scrollOffset;  // Title moves with the scroll, and margin is added
-        this.font.draw(poseStack, new TextComponent("Scavenger Hunt Progress"), titleX, titleY, 0xFFFFFF); // Larger title position
+        int titleY = MARGIN_TOP + 10 - scrollOffset;
+        this.font.draw(poseStack, new TextComponent("Scavenger Hunt Progress"), titleX, titleY, 0xFFFFFF);
 
-        // Split the items into complete and incomplete lists
+        // Split the items into complete and incomplete lists (no change)
         List<String> incompleteItems = new ArrayList<>();
         List<String> completeItems = new ArrayList<>();
         for (Map.Entry<String, Boolean> entry : playerProgress.entrySet()) {
@@ -113,39 +108,54 @@ public class ScavengerHuntPanel extends Screen {
             }
         }
 
-        // Render Incomplete Items Header (Yellow color)
-        int yOffset = MARGIN_TOP + 40;  // Start below the title and margin
-        this.font.draw(poseStack, new TextComponent("Incomplete Items"), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFF00); // Yellow header
+        // Render Incomplete Items Header (no change)
+        int yOffset = MARGIN_TOP + 40;
+        this.font.draw(poseStack, new TextComponent("Incomplete Items"), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFF00);
+        yOffset += 20;
+
+        // Render incomplete items (no change)
+        drawItemsInColumns(poseStack, incompleteItems, yOffset, columns, 16, 5, 0xFF0000);
+
+        // Calculate content height (no change)
+        contentHeight = yOffset + (incompleteItems.size() / columns + 1) * 16 + 10;
+
+        // Render Complete Items Header (no change)
+        yOffset += (incompleteItems.size() / columns + 1) * 16 + 10;
+        this.font.draw(poseStack, new TextComponent("Complete Items"), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFF00);
+        yOffset += 20;
+
+        // Render complete items (no change)
+        drawItemsInColumns(poseStack, completeItems, yOffset, columns, 16, 5, 0x00FF00);
+
+        // Calculate content height (no change)
+        contentHeight = yOffset + (completeItems.size() / columns + 1) * 16 + 10;
+
+        // Fetch and render the leaderboard data
+        List<LeaderboardManager.LeaderboardEntry> leaderboard = LeaderboardManager.getLeaderboard();
+        yOffset += (completeItems.size() / columns + 1) * 16 + 10;  // Adjust for the complete items
+        this.font.draw(poseStack, new TextComponent("Leaderboard"), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFF00); // Yellow header
         yOffset += 20; // Space for header
 
-        // Render incomplete items in columns (Red color)
-        drawItemsInColumns(poseStack, incompleteItems, yOffset, columns, 16, 5, 0xFF0000); // Red color for incomplete items
+        // Render leaderboard entries (Username and Completion Count)
+        for (LeaderboardManager.LeaderboardEntry entry : leaderboard) {
+            String leaderboardText = entry.playerName + ": " + entry.completionCount;
+            this.font.draw(poseStack, new TextComponent(leaderboardText), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFFFF);
+            yOffset += 16; // Increase yOffset for each entry
+        }
 
-        // Calculate content height
-        contentHeight = yOffset + (incompleteItems.size() / columns + 1) * 16 + 10; // height of incomplete items
+        // Update content height with leaderboard
+        contentHeight = yOffset;
 
-        // Render Complete Items Header (Yellow color)
-        yOffset += (incompleteItems.size() / columns + 1) * 16 + 10;  // Adjust for the size of the incomplete items
-        this.font.draw(poseStack, new TextComponent("Complete Items"), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFF00); // Yellow header
-        yOffset += 20; // Space for header
-
-        // Render complete items in columns (Green color)
-        drawItemsInColumns(poseStack, completeItems, yOffset, columns, 16, 5, 0x00FF00); // Green color for complete items
-
-        // Ensure the content doesn't scroll past the bottom of the panel
-        contentHeight = yOffset + (completeItems.size() / columns + 1) * 16 + 10; // height of complete items
+        // Ensure the content doesn't scroll past the bottom (no change)
         maxScrollOffset = Math.max(contentHeight - panelHeight + 40, 0);
-
-        // Clamp the scroll offset to be within bounds (top and bottom limits)
         scrollOffset = Math.max(0, Math.min(scrollOffset, maxScrollOffset));
 
-        // Render the scrollbar if necessary
+        // Render the scrollbar if necessary (no change)
         renderScrollbar(poseStack);
-        
-        
+
         RenderSystem.disableScissor();
-        
     }
+
 
     // Method to render items in columns with color
     private void drawItemsInColumns(PoseStack poseStack, List<String> items, int yOffset, int columns, int lineHeight, int spacing, int color) {
