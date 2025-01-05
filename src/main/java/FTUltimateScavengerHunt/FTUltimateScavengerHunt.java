@@ -58,6 +58,10 @@ public class FTUltimateScavengerHunt {
     
     // Master checklist for the current world
     public static Set<String> masterChecklist = new HashSet<>();
+    
+    // List of recipe outputs across all mods
+    static List<String> recipeList;
+    
 
     public static boolean isHuntStarted = false;
     public static String huntWinner = null;  // Changed from UUID to String player name
@@ -80,6 +84,10 @@ public class FTUltimateScavengerHunt {
     // Event listener to set world border when the server starts
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
+        Set<String> recipeOutputs = generateRecipeList(event.getServer()); // List to store recipe outputs
+
+        recipeList = new ArrayList<>(recipeOutputs);
+    	
         ServerLevel world = event.getServer().getLevel(ServerLevel.OVERWORLD);
 
         // Initially, set a small world border when the hunt hasn't started
@@ -124,6 +132,7 @@ public class FTUltimateScavengerHunt {
         isHuntStarted = false;
         huntWinner = null;
         masterChecklist.clear();
+        recipeList.clear();
         
         PlayerProgressManager.cleanUpForShutDown(event.getServer());
         LeaderboardManager.cleanUpForShutDown();
@@ -235,14 +244,14 @@ public class FTUltimateScavengerHunt {
         return new HashSet<>();
     }
 
-    public static void initializeMasterChecklist(MinecraftServer server) {
+    public static void initializeMasterChecklist(MinecraftServer server, int checklistSize) {
         // Try to load the master checklist from file first
         Set<String> loadedChecklist = loadMasterChecklist(server);
 
         // If loading the checklist fails, generate a new one
         if (loadedChecklist.isEmpty()) {
             LOGGER.info("Master checklist not found, generating a new checklist...");
-            generateMasterChecklist(server);
+            generateMasterChecklist(server, checklistSize);
             saveMasterChecklist(server); // Save the newly generated checklist
 
             // Initialize progress for all logged-in players and give them the FT Quest Hub Block
@@ -259,12 +268,7 @@ public class FTUltimateScavengerHunt {
         LOGGER.info("Master checklist: " + masterChecklist);
     }
 
-    private static void generateMasterChecklist(MinecraftServer server) {
-        int checklistSize = 10; // Define how many items are in the scavenger hunt's checklist
-
-        Set<String> recipeOutputs = generateRecipeList(server); // List to store recipe outputs
-
-        List<String> recipeList = new ArrayList<>(recipeOutputs);
+    private static void generateMasterChecklist(MinecraftServer server, int checklistSize) {
         Collections.shuffle(recipeList);
         masterChecklist.addAll(recipeList.subList(0, Math.min(checklistSize, recipeList.size())));
 

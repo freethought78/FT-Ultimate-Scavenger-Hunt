@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.logging.LogUtils;
@@ -16,6 +17,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraft.world.level.Level;
+
 import java.util.List;
 
 @Mod.EventBusSubscriber(modid = FTUltimateScavengerHunt.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -36,33 +38,14 @@ public class ModCommands {
     public static void registerCommands(MinecraftServer server) {
         // Create the /starthunt command
         LiteralArgumentBuilder<CommandSourceStack> startHuntCommand = Commands.literal("starthunt")
+            .then(Commands.argument("itemCount", IntegerArgumentType.integer(1))
+                .executes(context -> {
+                    int itemCount = IntegerArgumentType.getInteger(context, "itemCount");
+                    return handleStartHunt(context.getSource(), itemCount);
+                }))
             .executes(context -> {
-                // Retrieve the player from the context
-                ServerPlayer player = (ServerPlayer) context.getSource().getEntity();
-
-                // Check permissions and state of the hunt
-                if (!player.hasPermissions(1) && !player.getServer().isSingleplayer()) {
-                    context.getSource().sendSuccess(new TextComponent("You must be an operator to start the hunt."), false);
-                    return Command.SINGLE_SUCCESS;
-                }
-
-                if (FTUltimateScavengerHunt.huntWinner != null) {
-                    context.getSource().sendSuccess(new TextComponent("The hunt has ended! Winner: " + FTUltimateScavengerHunt.huntWinner), false);
-                    return Command.SINGLE_SUCCESS;
-                }
-
-                if (FTUltimateScavengerHunt.isHuntStarted) {
-                    context.getSource().sendSuccess(new TextComponent("The hunt is already in progress!"), false);
-                } else {
-                    // Start the hunt
-                    FTUltimateScavengerHunt.initializeMasterChecklist(context.getSource().getServer());
-                    FTUltimateScavengerHunt.isHuntStarted = true;
-                    
-                    FTUltimateScavengerHunt.setWorldBorder(server.overworld(), FTUltimateScavengerHunt.EXPANDED_BORDER_SIZE);
-                    context.getSource().sendSuccess(new TextComponent("Master checklist initialized and hunt started!"), false);
-                }
-
-                return Command.SINGLE_SUCCESS;
+                int defaultItemCount = 10; // Default item count when no argument is provided
+                return handleStartHunt(context.getSource(), defaultItemCount);
             });
 
         // Create the /respawn command (available only when the hunt is not started)
@@ -77,16 +60,18 @@ public class ModCommands {
                 }
 
                 // Respawn the player at the server's default spawn point (Overworld spawn)
-                player.teleportTo(player.getServer().getLevel(Level.OVERWORLD).getSharedSpawnPos().getX(), 
-                                  player.getServer().getLevel(Level.OVERWORLD).getSharedSpawnPos().getY(),
-                                  player.getServer().getLevel(Level.OVERWORLD).getSharedSpawnPos().getZ());
+                player.teleportTo(
+                    player.getServer().getLevel(Level.OVERWORLD).getSharedSpawnPos().getX(),
+                    player.getServer().getLevel(Level.OVERWORLD).getSharedSpawnPos().getY(),
+                    player.getServer().getLevel(Level.OVERWORLD).getSharedSpawnPos().getZ()
+                );
 
                 context.getSource().sendSuccess(new TextComponent("You have been respawned at the default spawn point."), false);
 
                 return Command.SINGLE_SUCCESS;
             });
 
-     // Create the /leaderboard command
+        // Create the /leaderboard command
         LiteralArgumentBuilder<CommandSourceStack> leaderboardCommand = Commands.literal("leaderboard")
             .executes(context -> {
                 ServerPlayer player = (ServerPlayer) context.getSource().getEntity();
@@ -101,8 +86,9 @@ public class ModCommands {
                 StringBuilder leaderboardMessage = new StringBuilder("Leaderboard:\n");
                 int rank = 1;
                 for (LeaderboardManager.LeaderboardEntry entry : leaderboard) {
-                    // Use the correct field name from LeaderboardEntry (e.g., playerName)
-                    leaderboardMessage.append(String.format("%d. %s - %d completions\n", rank++, entry.playerName, entry.completionCount));
+                    leaderboardMessage.append(
+                        String.format("%d. %s - %d completions\n", rank++, entry.playerName, entry.completionCount)
+                    );
                 }
 
                 // Send the leaderboard message to the player
@@ -110,7 +96,6 @@ public class ModCommands {
 
                 return Command.SINGLE_SUCCESS;
             });
-
 
         // Create the /isitemcomplete command
         LiteralArgumentBuilder<CommandSourceStack> isItemCompleteCommand = Commands.literal("isitemcomplete")
@@ -135,7 +120,44 @@ public class ModCommands {
         // Register the commands with the server's dispatcher
         server.getCommands().getDispatcher().register(startHuntCommand);
         server.getCommands().getDispatcher().register(respawnCommand);
-        server.getCommands().getDispatcher().register(leaderboardCommand);  // Register the leaderboard command
-        server.getCommands().getDispatcher().register(isItemCompleteCommand);  // Register the new isitemcomplete command
+        server.getCommands().getDispatcher().register(leaderboardCommand);
+        server.getCommands().getDispatcher().register(isItemCompleteCommand);
+    }
+
+    // Helper method to handle the logic for starting the hunt
+    private static int handleStartHunt(CommandSourceStack source, int itemCount) {
+        ServerPlayer player = (ServerPlayer) source.getEntity();
+
+        // Check permissions
+        if (!player.hasPermissions(1) && !player.getServer().isSingleplayer()) {
+            source.sendSuccess(new TextComponent("You must be an operator to start the hunt."), false);
+            return Command.SINGLE_SUCCESS;
+        }
+
+        // Check hunt state
+        if (FTUltimateScavengerHunt.huntWinner != null) {
+            source.sendSuccess(new TextComponent("The hunt has ended! Winner: " + FTUltimateScavengerHunt.huntWinner), false);
+            return Command.SINGLE_SUCCESS;
+        }
+
+        if (FTUltimateScavengerHunt.isHuntStarted) {
+            source.sendSuccess(new TextComponent("The hunt is already in progress!"), false);
+            return Command.SINGLE_SUCCESS;
+        }
+
+        // Validate item count
+        int recipeOutputCount = FTUltimateScavengerHunt.recipeList.size();
+        if (itemCount > recipeOutputCount) {
+            source.sendSuccess(new TextComponent("The specified item count exceeds the number of available recipe outputs ("+ recipeOutputCount+")"), false);
+            return Command.SINGLE_SUCCESS;
+        }
+
+        // Start the hunt
+        FTUltimateScavengerHunt.initializeMasterChecklist(source.getServer(), itemCount);
+        FTUltimateScavengerHunt.isHuntStarted = true;
+        FTUltimateScavengerHunt.setWorldBorder(source.getServer().overworld(), FTUltimateScavengerHunt.EXPANDED_BORDER_SIZE);
+
+        source.sendSuccess(new TextComponent("Master checklist initialized with " + itemCount + " items, and hunt started!"), false);
+        return Command.SINGLE_SUCCESS;
     }
 }
