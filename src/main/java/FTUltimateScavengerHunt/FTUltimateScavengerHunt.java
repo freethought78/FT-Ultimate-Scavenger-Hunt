@@ -93,6 +93,7 @@ public class FTUltimateScavengerHunt {
     // Event listener to set world border when the server starts
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
+    	MinecraftServer server = event.getServer();
         Set<String> recipeOutputs = generateRecipeList(event.getServer()); // List to store recipe outputs
 
         recipeList = new ArrayList<>(recipeOutputs);
@@ -102,9 +103,10 @@ public class FTUltimateScavengerHunt {
         // Initially, set a small world border when the hunt hasn't started
         setWorldBorder(world, INITIAL_BORDER_SIZE);
         
-        //When server starts, load player progress and update the leaderboard
-        PlayerProgressManager.loadAllPlayerProgress(event.getServer());
-        LeaderboardManager.updateLeaderboard(event.getServer());
+        //When server starts, load player progress, load master checklist, and update the leaderboard
+        masterChecklist = loadMasterChecklist(server);
+        PlayerProgressManager.loadAllPlayerProgress(server);
+        LeaderboardManager.updateLeaderboard(server);
     }
 
     // Method to set the world border size
@@ -171,11 +173,7 @@ public class FTUltimateScavengerHunt {
 
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        if (huntWinner != null) {
-            // If the hunt has ended, inform the player they cannot interact with the hunt
-            event.getPlayer().sendMessage(new TextComponent("The scavenger hunt has ended. You cannot continue the hunt."), event.getPlayer().getUUID());
-            event.setCanceled(true);  // Optionally cancel the login event if you want to block further interaction
-        } else if (isHuntStarted) {
+    	if (isHuntStarted) {
             // Initialize player progress if the hunt is started and not yet ended
             PlayerProgressManager.initializePlayerProgress(event.getPlayer().getName().getString(), event.getPlayer().getServer());
         }

@@ -132,8 +132,18 @@ public class ScavengerHuntPanel extends Screen {
 
         // Fetch and render the leaderboard data
         List<LeaderboardManager.LeaderboardEntry> leaderboard = LeaderboardManager.getLeaderboard();
+        
+        String huntWinner = FTUltimateScavengerHunt.huntWinner;
+        String winnerMessage;
+        
+        if (huntWinner == null) {
+        	winnerMessage = "No winner yet.";
+        } else {
+        	winnerMessage = huntWinner + " IS THE WINNER!";
+        }
+        
         yOffset += (completeItems.size() / columns + 1) * 16 + 10;  // Adjust for the complete items
-        this.font.draw(poseStack, new TextComponent("Leaderboard"), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFF00); // Yellow header
+        this.font.draw(poseStack, new TextComponent("Leaderboard - " + FTUltimateScavengerHunt.masterChecklist.size() + " items total - " + winnerMessage), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFF00); // Yellow header
         yOffset += 20; // Space for header
 
         // Render leaderboard entries (Username and Completion Count)

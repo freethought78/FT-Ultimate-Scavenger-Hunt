@@ -82,8 +82,18 @@ public class ModCommands {
                     return Command.SINGLE_SUCCESS;
                 }
 
+                String huntWinner = FTUltimateScavengerHunt.huntWinner;
+                int huntSize = FTUltimateScavengerHunt.masterChecklist.size();
+                String winnerMessage;
+                
+                if (huntWinner == null) {
+                	winnerMessage = "No winner yet.";
+                } else {
+                	winnerMessage = huntWinner + " IS THE WINNER!";
+                }
+                
                 // Build the leaderboard display message
-                StringBuilder leaderboardMessage = new StringBuilder("Leaderboard:\n");
+                StringBuilder leaderboardMessage = new StringBuilder("Leaderboard - "+ huntSize + " Items - "+ winnerMessage +"\n");
                 int rank = 1;
                 for (LeaderboardManager.LeaderboardEntry entry : leaderboard) {
                     leaderboardMessage.append(
