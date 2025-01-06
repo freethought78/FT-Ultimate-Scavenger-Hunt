@@ -1,6 +1,8 @@
 package FTUltimateScavengerHunt;
 
 import java.util.Collections;
+import net.minecraftforge.api.distmarker.Dist;
+
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +25,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Material;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 public class FTQuestHubBlock extends Block {
 
@@ -44,6 +47,11 @@ public class FTQuestHubBlock extends Block {
         // Ensure the block drops itself
         return Collections.singletonList(new ItemStack(this));
     }
+    
+    @OnlyIn(Dist.CLIENT)
+    public void openScreenOnClient(ItemStack heldItem) {
+        Minecraft.getInstance().setScreen(new ScavengerHuntPanel());
+    }
 
     // Override the 'use' method to handle right-click behavior
     @Override
@@ -56,7 +64,7 @@ public class FTQuestHubBlock extends Block {
         // On the client side only, when the block is right-clicked with an empty hand, display the scavenger hunt's progress panel
         if (level.isClientSide()) {
             if (heldItem.isEmpty()) {
-                Minecraft.getInstance().setScreen(new ScavengerHuntPanel());
+                openScreenOnClient(heldItem);
                 return InteractionResult.SUCCESS;
             }
         }
@@ -106,6 +114,7 @@ public class FTQuestHubBlock extends Block {
 
         return InteractionResult.SUCCESS; // Return SUCCESS to indicate that the action was handled
     }
+
 
     // Utility methods using PlayerProgressManager
 
