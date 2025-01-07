@@ -136,10 +136,18 @@ public class ModCommands {
 
     // Helper method to handle the logic for starting the hunt
     private static int handleStartHunt(CommandSourceStack source, int itemCount) {
-        ServerPlayer player = (ServerPlayer) source.getEntity();
+        // Check if the source is a player
+        ServerPlayer player = null;
+        if (source.getEntity() instanceof ServerPlayer) {
+            player = (ServerPlayer) source.getEntity();
+        }
 
-        // Check permissions
-        if (!player.hasPermissions(1) && !player.getServer().isSingleplayer()) {
+        // Check permissions (allowing console as well)
+        if (player != null && !player.hasPermissions(1) && !player.getServer().isSingleplayer()) {
+            source.sendSuccess(new TextComponent("You must be an operator to start the hunt."), false);
+            return Command.SINGLE_SUCCESS;
+        } else if (player == null && !source.hasPermission(2)) {
+            // For console: You need to ensure the command source has permission level 2 or higher
             source.sendSuccess(new TextComponent("You must be an operator to start the hunt."), false);
             return Command.SINGLE_SUCCESS;
         }
@@ -158,7 +166,7 @@ public class ModCommands {
         // Validate item count
         int recipeOutputCount = FTUltimateScavengerHunt.recipeList.size();
         if (itemCount > recipeOutputCount) {
-            source.sendSuccess(new TextComponent("The specified item count exceeds the number of available recipe outputs ("+ recipeOutputCount+")"), false);
+            source.sendSuccess(new TextComponent("The specified item count exceeds the number of available recipe outputs ("+ recipeOutputCount +")"), false);
             return Command.SINGLE_SUCCESS;
         }
 
@@ -170,4 +178,5 @@ public class ModCommands {
         source.sendSuccess(new TextComponent("Master checklist initialized with " + itemCount + " items, and hunt started!"), false);
         return Command.SINGLE_SUCCESS;
     }
+
 }
