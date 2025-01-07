@@ -16,7 +16,7 @@ plugins {
 apply plugin: 'net.minecraftforge.gradle'
 
 
-version = '0.07'
+version = '0.08'
 group = 'FT' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = 'FTUltimateScavengerHunt'
 

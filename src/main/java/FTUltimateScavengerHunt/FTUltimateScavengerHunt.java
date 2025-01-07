@@ -4,6 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.TextComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,12 +12,11 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.FireworkRocketEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.FireworkRocketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.level.storage.LevelResource;
@@ -30,6 +30,8 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -41,6 +43,7 @@ import java.util.*;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -50,6 +53,15 @@ import com.mojang.logging.LogUtils;
 public class FTUltimateScavengerHunt {
 
     public static final String MODID = "ftultimatescavengerhunt";
+    private static final String NETWORK_PROTOCOL_VERSION = "1.0"; // Increment this for breaking changes
+
+    // Create the network channel
+    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
+        new ResourceLocation(MODID, "main_channel"),
+        () -> NETWORK_PROTOCOL_VERSION,
+        NETWORK_PROTOCOL_VERSION::equals,
+        NETWORK_PROTOCOL_VERSION::equals
+    );
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 
@@ -82,12 +94,26 @@ public class FTUltimateScavengerHunt {
         LOGGER.info("FTUltimateScavengerHunt mod is initializing...");
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
+        
+        // Register the custom packet handler
+        CHANNEL.registerMessage(
+            0,  // Packet ID
+            CustomPacket.class,
+            CustomPacket::encode,
+            CustomPacket::decode,
+            PacketHandler::onPacketReceived
+        );
+        
+
+        
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(TaskScheduler.class);
+
 
         // Register blocks and items
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
+
     }
     
     // Event listener to set world border when the server starts
@@ -126,15 +152,25 @@ public class FTUltimateScavengerHunt {
         Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
         Path checklistPath = worldFolderPath.resolve("master_checklist.json");
 
-        isHuntStarted = Files.exists(checklistPath);
+        if(Files.exists(checklistPath)) setHuntStarted(true, server.getLevel(Level.OVERWORLD));
 
         if (isHuntStarted) {
             setWorldBorder(world, EXPANDED_BORDER_SIZE);
+            setHuntStarted(true, event.getServer().getLevel(Level.OVERWORLD));
         } else {
             deleteNonPlayerEntities(world);
         }
 
         // Load player progress
+    }
+    
+    public static void setHuntStarted(Boolean status, Level level) {
+    	if(level.isClientSide()) {
+    		return;
+    	}
+    	isHuntStarted = status;
+    	
+    	PacketSender.sendHuntStartedStatusPacket(status, level.getServer());
     }
     
     @SubscribeEvent
@@ -176,6 +212,7 @@ public class FTUltimateScavengerHunt {
     	if (isHuntStarted) {
             // Initialize player progress if the hunt is started and not yet ended
             PlayerProgressManager.initializePlayerProgress(event.getPlayer().getName().getString(), event.getPlayer().getServer());
+            setHuntStarted(true, event.getPlayer().getServer().getLevel(Level.OVERWORLD));
         }
     }
     
@@ -328,7 +365,7 @@ public class FTUltimateScavengerHunt {
         if (Files.exists(checklistPath)) {
             try {
                 String json = new String(Files.readAllBytes(checklistPath));
-                isHuntStarted = true;
+                setHuntStarted(true, server.getLevel(Level.OVERWORLD));
                 return new Gson().fromJson(json, new TypeToken<Set<String>>() {}.getType());
             } catch (IOException e) {
                 LOGGER.error("Failed to load master checklist", e);

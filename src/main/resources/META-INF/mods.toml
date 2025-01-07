@@ -20,7 +20,7 @@ modId="ftultimatescavengerhunt" #mandatory
 # ${file.jarVersion} will substitute the value of the Implementation-Version as read from the mod's JAR file metadata
 # see the associated build.gradle script for how to populate this completely automatically during a build
 
-version="0.07" #mandatory
+version="0.08" #mandatory
 
 # A display name for the mod
 displayName="FT Ultimate Scavenger Hunt" #mandatory
