@@ -54,6 +54,8 @@ public class PlayerProgressManager {
                 }
             }
         }
+        //send updated player progress data to all players
+        PacketSender.sendMasterPlayerProgressPacket(masterPlayerProgress, server);
     }
 
 
@@ -140,9 +142,6 @@ public class PlayerProgressManager {
             progressFolder.mkdirs();
         }
 
-        // Define the player's progress file
-        File progressFile = new File(progressFolder, playerName + ".json");
-
         // Load player progress from file, if it exists
         ConcurrentHashMap<String, Boolean> existingProgress = loadPlayerProgressFromFile(server, playerName);
 
@@ -173,6 +172,9 @@ public class PlayerProgressManager {
             // If the progress file exists, update the global map with the loaded progress
             masterPlayerProgress.put(playerName, existingProgress);
         }
+        
+        //send updated player progress data to all players
+        PacketSender.sendMasterPlayerProgressPacket(masterPlayerProgress, server);
     }
 
 
