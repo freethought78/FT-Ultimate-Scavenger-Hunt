@@ -141,7 +141,7 @@ public class ScavengerHuntPanel extends Screen {
         }
         
         yOffset += (completeItems.size() / columns + 1) * 16 + 10;  // Adjust for the complete items
-        this.font.draw(poseStack, new TextComponent("Leaderboard - " + FTUltimateScavengerHunt.masterChecklist.size() + " items total - " + winnerMessage), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFF00); // Yellow header
+        this.font.draw(poseStack, new TextComponent("Leaderboard - " + playerProgress.size() + " items total - " + winnerMessage), MARGIN_SIDES, yOffset - scrollOffset, 0xFFFF00); // Yellow header
         yOffset += 20; // Space for header
 
         // Render leaderboard entries (Username and Completion Count)

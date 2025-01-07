@@ -8,7 +8,7 @@ import net.minecraft.server.MinecraftServer;
 
 public class LeaderboardManager {
     // Data object to store leaderboard: List of LeaderboardEntry objects
-    private static List<LeaderboardEntry> leaderboard = new ArrayList<>();
+    static List<LeaderboardEntry> leaderboard = new ArrayList<>();
 
     // Class to store leaderboard entries
     public static class LeaderboardEntry {
@@ -35,6 +35,7 @@ public class LeaderboardManager {
 
         // Update the leaderboard
         leaderboard = updatedLeaderboard;
+        PacketSender.sendLeaderboardPacket(leaderboard, server);
     }
 
     public static List<LeaderboardEntry> getLeaderboard() {

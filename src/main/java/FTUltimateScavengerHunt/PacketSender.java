@@ -3,9 +3,11 @@ package FTUltimateScavengerHunt;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraftforge.network.NetworkDirection;
 
 public class PacketSender {
@@ -60,4 +62,30 @@ public class PacketSender {
         // Send the serialized data as a packet to all players
         sendPacketToAllPlayers(server, data);
     }
+    
+    public static void sendLeaderboardPacket(List<LeaderboardManager.LeaderboardEntry> leaderboard, MinecraftServer server) {
+        // Create a CompoundTag to hold the leaderboard data
+        CompoundTag data = new CompoundTag();
+
+        // Create a list tag to hold all leaderboard entries
+        ListTag leaderboardList = new ListTag();
+
+        // Iterate through the leaderboard and serialize each entry without altering the data
+        for (LeaderboardManager.LeaderboardEntry entry : leaderboard) {
+            CompoundTag entryData = new CompoundTag();
+            entryData.putString("playerName", entry.playerName);
+            entryData.putInt("completionCount", entry.completionCount);
+
+            // Add each entry's data to the list
+            leaderboardList.add(entryData);
+        }
+
+        // Add the leaderboard list to the main data tag
+        data.put("leaderboard", leaderboardList);
+
+        // Send the leaderboard packet to all players
+        sendPacketToAllPlayers(server, data);
+    }
+
+
 }

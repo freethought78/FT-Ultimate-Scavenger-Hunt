@@ -1,6 +1,7 @@
 package FTUltimateScavengerHunt;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraftforge.network.NetworkEvent;
 
@@ -43,6 +44,31 @@ public class PacketHandler {
                 // Update the PlayerProgress.masterPlayerProgress
                 PlayerProgressManager.masterPlayerProgress = decodedProgress;
                 System.out.println("Updated masterPlayerProgress: " + PlayerProgressManager.masterPlayerProgress);
+            }
+            
+            // Handle leaderboard data (new functionality)
+            if (data.contains("leaderboard", Tag.TAG_LIST)) {
+                // Deserialize the leaderboard list
+                ListTag leaderboardList = data.getList("leaderboard", Tag.TAG_COMPOUND);
+
+                // Clear the current leaderboard (replace with new data)
+                LeaderboardManager.leaderboard.clear();
+
+                // Iterate through the leaderboard entries
+                for (Tag entryTag : leaderboardList) {
+                    CompoundTag entryData = (CompoundTag) entryTag;
+
+                    // Extract player name and completion count
+                    String playerName = entryData.getString("playerName");
+                    int completionCount = entryData.getInt("completionCount");
+
+                    // Create a new LeaderboardEntry and add it to the leaderboard
+                    LeaderboardManager.LeaderboardEntry entry = new LeaderboardManager.LeaderboardEntry(playerName, completionCount);
+                    LeaderboardManager.leaderboard.add(entry);
+                }
+
+                // Optionally, print the updated leaderboard
+                System.out.println("Updated leaderboard: " + LeaderboardManager.getLeaderboard());
             }
         });
 
