@@ -83,38 +83,26 @@ public class CancelPlayerInteraction {
 
             // Remove the placed block from the world immediately
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
-            delayReturnBlock(event, player, -1);
+            delayReturnBlock(event, player);
         }
     }
     
-    private static void delayReturnBlock(BlockEvent.EntityPlaceEvent event, ServerPlayer player, int targetStackSize) {    
+    private static void delayReturnBlock(BlockEvent.EntityPlaceEvent event, ServerPlayer player) {    
         // Get the block type the player attempted to place
         BlockState placedBlockState = event.getPlacedBlock();
         Block placedBlock = placedBlockState.getBlock();
         ItemStack blockItem = new ItemStack(placedBlock.asItem());
-        int currentStackSize = getItemCount(player, blockItem);
         
-        if (targetStackSize == -1) {
-        	targetStackSize = currentStackSize+1;
-        }
-        
-        
-        if (currentStackSize < targetStackSize) {
-        	int tss = 1;//targetStackSize;
-    	
-        
-	        // Create a ScheduledExecutorService to handle the task
-	        var scheduler = Executors.newSingleThreadScheduledExecutor();
-	        Runnable task = () -> {
+        // Create a ScheduledExecutorService to handle the task
+        var scheduler = Executors.newSingleThreadScheduledExecutor();
+        Runnable task = () -> {
+        	int currentStackSize = getItemCount(player, blockItem);  	
+        	if (currentStackSize < 1) {
 	            player.getInventory().add(blockItem);
-            	delayReturnBlock(event, player, tss);
-	
-	        };
-	
-	        scheduler.schedule(task, 100, TimeUnit.MILLISECONDS);  
-	
-	        scheduler.shutdown();
-        }
+            	delayReturnBlock(event, player);
+        	}
+        };
+        scheduler.schedule(task, 500, TimeUnit.MILLISECONDS);  
     }
 
     private static int getItemCount(ServerPlayer player, ItemStack itemStack) {
