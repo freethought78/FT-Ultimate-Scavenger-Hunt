@@ -226,6 +226,8 @@ public class PlayerProgressManager {
         if (progress != null && progress.containsKey(itemName) && !progress.get(itemName)) {
             // Mark the item as completed
             progress.put(itemName, true);
+            masterPlayerProgress.put(playerName, progress);
+            PacketSender.sendMasterPlayerProgressPacket(masterPlayerProgress, server);
             
             //Update Leader Board
             LeaderboardManager.updateLeaderboard(server);
