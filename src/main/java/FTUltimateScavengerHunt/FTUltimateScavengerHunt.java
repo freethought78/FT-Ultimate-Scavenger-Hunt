@@ -1,5 +1,6 @@
 package FTUltimateScavengerHunt;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.ChatType;
@@ -51,6 +52,7 @@ import com.mojang.logging.LogUtils;
 @Mod("ftultimatescavengerhunt")
 @Mod.EventBusSubscriber(modid = "ftultimatescavengerhunt", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class FTUltimateScavengerHunt {
+	static int spawnProtectionRadius = 64;  // Store spawn protection radius
 
     public static final String MODID = "ftultimatescavengerhunt";
     private static final String NETWORK_PROTOCOL_VERSION = "1.0"; // Increment this for breaking changes
@@ -81,6 +83,8 @@ public class FTUltimateScavengerHunt {
     
     // List of recipe outputs across all mods
     static List<String> recipeList;
+    
+    static BlockPos defaultSpawnPosition;
     
 
     public static boolean isHuntStarted = false;
@@ -121,10 +125,13 @@ public class FTUltimateScavengerHunt {
     public static void onServerStarting(ServerStartingEvent event) {
     	MinecraftServer server = event.getServer();
         Set<String> recipeOutputs = generateRecipeList(event.getServer()); // List to store recipe outputs
+        //spawnProtectionRadius = server.getSpawnProtectionRadius();  // This retrieves the current spawn protection radius
 
         recipeList = new ArrayList<>(recipeOutputs);
     	
         ServerLevel world = event.getServer().getLevel(ServerLevel.OVERWORLD);
+        defaultSpawnPosition = world.getSharedSpawnPos();
+
 
         // Initially, set a small world border when the hunt hasn't started
         setWorldBorder(world, INITIAL_BORDER_SIZE);
@@ -134,6 +141,8 @@ public class FTUltimateScavengerHunt {
         PlayerProgressManager.loadAllPlayerProgress(server);
         LeaderboardManager.updateLeaderboard(server);
     }
+    
+    
 
     // Method to set the world border size
     public static void setWorldBorder(ServerLevel world, int size) {
@@ -209,11 +218,12 @@ public class FTUltimateScavengerHunt {
 
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-    	if (isHuntStarted) {
-            // Initialize player progress if the hunt is started and not yet ended
-            PlayerProgressManager.initializePlayerProgress(event.getPlayer().getName().getString(), event.getPlayer().getServer());
-            setHuntStarted(true, event.getPlayer().getServer().getLevel(Level.OVERWORLD));
-        }
+    	PacketSender.sendSpawnProtectionRadiusPacket(spawnProtectionRadius, defaultSpawnPosition, (ServerPlayer) event.getPlayer());
+    	
+    	if(isHuntStarted) {
+    		PlayerProgressManager.initializePlayerProgress(event.getPlayer().getName().getString(), event.getPlayer().getServer());
+    		setHuntStarted(isHuntStarted, event.getPlayer().getServer().getLevel(Level.OVERWORLD));
+    	}
     }
     
  // Method to mark a player as the winner and end the hunt
@@ -234,7 +244,7 @@ public class FTUltimateScavengerHunt {
             launchFireworksForPlayers(server);
         }
     }
-
+    
     // Method to launch fireworks around every player
     private static void launchFireworksForPlayers(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {

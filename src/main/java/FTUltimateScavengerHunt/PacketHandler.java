@@ -1,5 +1,6 @@
 package FTUltimateScavengerHunt;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -69,6 +70,20 @@ public class PacketHandler {
 
                 // Optionally, print the updated leaderboard
                 System.out.println("Updated leaderboard: " + LeaderboardManager.getLeaderboard());
+            }
+            
+            // Set BlockPlayerInteraction.spawnProtectionRadius
+            if (data.contains("spawnProtectionRadius", Tag.TAG_INT)) {
+                int spawnProtectionRadius = data.getInt("spawnProtectionRadius");
+                int spawnPosX = data.getInt("spawnPosX");
+                int spawnPosY = data.getInt("spawnPosY");
+                int spawnPosZ = data.getInt("spawnPosZ");
+                
+                FTUltimateScavengerHunt.spawnProtectionRadius = spawnProtectionRadius; 
+                
+                FTUltimateScavengerHunt.defaultSpawnPosition = new BlockPos(spawnPosX, spawnPosY, spawnPosZ);
+                
+                System.out.println("Updated spawn protection radius: " + spawnProtectionRadius);
             }
         });
 

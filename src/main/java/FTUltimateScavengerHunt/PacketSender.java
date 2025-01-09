@@ -2,10 +2,10 @@ package FTUltimateScavengerHunt;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraftforge.network.NetworkDirection;
@@ -27,6 +27,17 @@ public class PacketSender {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             sendPacketToPlayer(player, data);
         }
+    }
+    
+    // Method to send a custom packet to the server
+    public static void sendPacketToServer(CompoundTag data) {
+        // Create your custom packet with the data
+        CustomPacket packet = new CustomPacket(data);
+
+        // Send the custom packet to the server using the network channel
+        FTUltimateScavengerHunt.CHANNEL.sendToServer(packet);
+
+        System.out.println("+++ SENDING PACKET to Server with data: " + data.toString());
     }
 
     // Create a packet to send the status of isHuntStarted to all players
@@ -63,6 +74,8 @@ public class PacketSender {
         sendPacketToAllPlayers(server, data);
     }
     
+
+    
     public static void sendLeaderboardPacket(List<LeaderboardManager.LeaderboardEntry> leaderboard, MinecraftServer server) {
         // Create a CompoundTag to hold the leaderboard data
         CompoundTag data = new CompoundTag();
@@ -87,5 +100,17 @@ public class PacketSender {
         sendPacketToAllPlayers(server, data);
     }
 
+    public static void sendSpawnProtectionRadiusPacket(int spawnProtectionRadius, BlockPos defaultSpawnPosition, ServerPlayer player) {
+        // Create a CompoundTag to hold the spawn protection radius data
+        CompoundTag data = new CompoundTag();
+        data.putInt("spawnProtectionRadius", spawnProtectionRadius); // Store the radius value
 
+        // Add the default spawn position to the CompoundTag
+        data.putInt("spawnPosX", defaultSpawnPosition.getX());
+        data.putInt("spawnPosY", defaultSpawnPosition.getY());
+        data.putInt("spawnPosZ", defaultSpawnPosition.getZ());
+
+        // Send the packet with the spawn protection radius and default spawn position to the specified player
+        sendPacketToPlayer(player, data);
+    }
 }

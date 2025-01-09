@@ -98,7 +98,7 @@ public class FTQuestHubBlock extends Block {
                     "%s has turned in %s! They have now turned in %d out of %d items and have %d more to go!",
                     playerName, itemName, itemsTurnedIn, totalItems, itemsRemaining
                 );
-                player.getServer().getPlayerList().broadcastMessage(new TextComponent(broadcastMessage), ChatType.SYSTEM, null);
+                player.getServer().getPlayerList().broadcastMessage(new TextComponent(broadcastMessage), ChatType.SYSTEM, player.getUUID());
 
                 // Check if the player has completed the scavenger hunt and declare them as the winner
                 if (PlayerProgressManager.isPlayerComplete(playerName)) {

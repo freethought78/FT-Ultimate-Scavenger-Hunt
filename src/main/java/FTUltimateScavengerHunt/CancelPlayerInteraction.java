@@ -1,7 +1,20 @@
 package FTUltimateScavengerHunt;
 
+
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
@@ -17,16 +30,115 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = "ftultimatescavengerhunt", bus = Mod.EventBusSubscriber.Bus.FORGE)
 
 
-public class BlockPlayerInteraction {
+public class CancelPlayerInteraction {
 	
-    // Prevent block breaking before the scavenger hunt starts
+    // Enforce spawn protection
+    private static Boolean  isWithinSpawnProtectionRadius(BlockPos pos) {
+        BlockPos spawnPos = FTUltimateScavengerHunt.defaultSpawnPosition;
+
+        // Convert both positions to Vec3 and calculate distance squared
+        Vec3 playerVec = new Vec3(pos.getX(), pos.getY(), pos.getZ());
+        Vec3 spawnVec = new Vec3(spawnPos.getX(), spawnPos.getY(), spawnPos.getZ());
+        double distanceSquared = playerVec.distanceToSqr(spawnVec);
+
+		return distanceSquared <= FTUltimateScavengerHunt.spawnProtectionRadius * FTUltimateScavengerHunt.spawnProtectionRadius;
+    }
+    
+    // Prevent block breaking before the hunt starts
     @SubscribeEvent
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (!FTUltimateScavengerHunt.isHuntStarted && event.isCancelable()) {
+        if (!FTUltimateScavengerHunt.isHuntStarted) {
             event.setCanceled(true);
             event.getPlayer().sendMessage(new TextComponent("You cannot break blocks until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
+        } else {
+        	if(isWithinSpawnProtectionRadius(event.getPos())) event.setCanceled(true);
         }
     }
+    
+    
+    
+    // Prevent block placement before the hunt starts
+    @SubscribeEvent
+    public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
+    	
+        if (!FTUltimateScavengerHunt.isHuntStarted) {
+            cancelBlockPlacement(event);
+            if (event.getEntity() instanceof ServerPlayer player) {
+                player.sendMessage(
+                    new TextComponent("You cannot place blocks until the scavenger hunt is started with /starthunt."),
+                    player.getUUID()
+                );
+            }
+        } else {
+        	if (isWithinSpawnProtectionRadius(event.getPos())) {
+        		cancelBlockPlacement(event);
+        	}
+        }
+    }
+
+    private static void cancelBlockPlacement(BlockEvent.EntityPlaceEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            ServerLevel level = (ServerLevel) player.getLevel();
+            BlockPos pos = event.getPos();
+
+            // Remove the placed block from the world immediately
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+            delayReturnBlock(event, player, -1);
+        }
+    }
+    
+    private static void delayReturnBlock(BlockEvent.EntityPlaceEvent event, ServerPlayer player, int targetStackSize) {    
+        // Get the block type the player attempted to place
+        BlockState placedBlockState = event.getPlacedBlock();
+        Block placedBlock = placedBlockState.getBlock();
+        ItemStack blockItem = new ItemStack(placedBlock.asItem());
+        int currentStackSize = getItemCount(player, blockItem);
+        
+        if (targetStackSize == -1) {
+        	targetStackSize = currentStackSize+1;
+        }
+        
+        
+        if (currentStackSize < targetStackSize) {
+        	int tss = 1;//targetStackSize;
+    	
+        
+	        // Create a ScheduledExecutorService to handle the task
+	        var scheduler = Executors.newSingleThreadScheduledExecutor();
+	        Runnable task = () -> {
+	            player.getInventory().add(blockItem);
+            	delayReturnBlock(event, player, tss);
+	
+	        };
+	
+	        scheduler.schedule(task, 100, TimeUnit.MILLISECONDS);  
+	
+	        scheduler.shutdown();
+        }
+    }
+
+    private static int getItemCount(ServerPlayer player, ItemStack itemStack) {
+        int count = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stackInSlot = player.getInventory().getItem(i);
+            if (ItemStack.isSameItemSameTags(itemStack, stackInSlot)) {
+                count += stackInSlot.getCount();
+            }
+        }
+        return count;
+    }
+
+
+
+
+
+
+
+
+
+
+
+    
 
     // Prevent item pickups before the scavenger hunt starts
     @SubscribeEvent
@@ -55,6 +167,7 @@ public class BlockPlayerInteraction {
         }
     }
 
+    /*
     // Prevent player interactions with the world before the scavenger hunt starts
     @SubscribeEvent
     public static void onPlayerInteract(PlayerInteractEvent event) {
@@ -63,6 +176,7 @@ public class BlockPlayerInteraction {
             event.getPlayer().sendMessage(new TextComponent("You cannot interact with the world until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
+    */
 
     // Prevent player attacks on entities before the scavenger hunt starts
     @SubscribeEvent
@@ -72,16 +186,7 @@ public class BlockPlayerInteraction {
             event.getPlayer().sendMessage(new TextComponent("You cannot attack entities until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
-
-    // Prevent block placement before the scavenger hunt starts
-    @SubscribeEvent
-    public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
-        if (!FTUltimateScavengerHunt.isHuntStarted && event.isCancelable()) {
-            event.setCanceled(true);
-            event.getEntity().sendMessage(new TextComponent("You cannot place blocks until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
-        }
-    }
-
+    
     // Prevent item dropping before the scavenger hunt starts
     @SubscribeEvent
     public static void onItemDrop(ItemTossEvent event) {
