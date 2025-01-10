@@ -85,6 +85,10 @@ public class PacketHandler {
                 
                 System.out.println("Updated spawn protection radius: " + spawnProtectionRadius);
             }
+            
+            if (data.contains("huntWinner", Tag.TAG_STRING)) {
+            	FTUltimateScavengerHunt.huntWinner = data.getString("huntWinner");
+            }
         });
 
         // Mark the event as handled

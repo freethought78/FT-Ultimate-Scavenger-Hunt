@@ -102,7 +102,7 @@ public class PacketSender {
 
     public static void sendSpawnProtectionRadiusPacket(int spawnProtectionRadius, BlockPos defaultSpawnPosition, ServerPlayer player) {
         // Create a CompoundTag to hold the spawn protection radius data
-        CompoundTag data = new CompoundTag();
+    	CompoundTag data = new CompoundTag();
         data.putInt("spawnProtectionRadius", spawnProtectionRadius); // Store the radius value
 
         // Add the default spawn position to the CompoundTag
@@ -113,4 +113,10 @@ public class PacketSender {
         // Send the packet with the spawn protection radius and default spawn position to the specified player
         sendPacketToPlayer(player, data);
     }
+
+	public static void sendHuntWinnerPacket(String huntWinner, MinecraftServer server) {
+		CompoundTag data = new CompoundTag();
+		data.putString("huntWinner", huntWinner);
+		sendPacketToAllPlayers(server, data);
+	}
 }

@@ -1,5 +1,6 @@
 package FTUltimateScavengerHunt;
 
+import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -230,7 +231,8 @@ public class FTUltimateScavengerHunt {
     public static void endHunt(MinecraftServer server, String winnerName) {
         if (huntWinner == null) {
             huntWinner = winnerName;
-
+            PacketSender.sendHuntWinnerPacket(huntWinner, server);
+            
             // Save the winner's name to a file
             saveWinnerToFile(server, winnerName);
 
@@ -238,7 +240,7 @@ public class FTUltimateScavengerHunt {
             TextComponent message = new TextComponent("The scavenger hunt has ended! Congratulations to " + winnerName + ", you are the winner!");
 
             // Broadcast the message to all players in the default chat type
-            server.getPlayerList().broadcastMessage(message, ChatType.SYSTEM, null);
+            server.getPlayerList().broadcastMessage(message, ChatType.SYSTEM, Util.NIL_UUID);
 
             // Trigger fireworks for all players
             launchFireworksForPlayers(server);
@@ -246,7 +248,7 @@ public class FTUltimateScavengerHunt {
     }
     
     // Method to launch fireworks around every player
-    private static void launchFireworksForPlayers(MinecraftServer server) {
+    public static void launchFireworksForPlayers(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             // Start a fireworks show around the player
             startFireworksShow(player);
@@ -366,6 +368,7 @@ public class FTUltimateScavengerHunt {
                 String winnerJson = new String(Files.readAllBytes(winnerFilePath));
                 huntWinner = new Gson().fromJson(winnerJson, String.class);
                 LOGGER.info("Hunt winner name loaded: " + huntWinner);
+                PacketSender.sendHuntWinnerPacket(huntWinner, server);
             } catch (IOException e) {
                 LOGGER.error("Failed to load hunt winner name", e);
             }

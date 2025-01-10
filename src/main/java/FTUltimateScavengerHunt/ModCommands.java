@@ -1,7 +1,9 @@
 package FTUltimateScavengerHunt;
 
+import net.minecraft.Util;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
@@ -175,7 +177,8 @@ public class ModCommands {
         FTUltimateScavengerHunt.setHuntStarted(true, source.getServer().getLevel(Level.OVERWORLD));
         FTUltimateScavengerHunt.setWorldBorder(source.getServer().overworld(), FTUltimateScavengerHunt.EXPANDED_BORDER_SIZE);
 
-        source.sendSuccess(new TextComponent("Master checklist initialized with " + itemCount + " items, and hunt started!"), false);
+        source.getServer().getPlayerList().broadcastMessage(new TextComponent("Master checklist initialized with " + itemCount + " items, and hunt started!"), ChatType.SYSTEM, Util.NIL_UUID);
+       
         return Command.SINGLE_SUCCESS;
     }
 
