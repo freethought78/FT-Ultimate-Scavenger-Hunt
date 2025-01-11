@@ -32,7 +32,9 @@ public class CancelPlayerInteraction {
         Vec3 playerVec = new Vec3(pos.getX(), pos.getY(), pos.getZ());
         Vec3 spawnVec = new Vec3(spawnPos.getX(), spawnPos.getY(), spawnPos.getZ());
         double distanceSquared = playerVec.distanceToSqr(spawnVec);
-
+        
+        System.out.println(spawnPos + ", "+ playerVec +", "+spawnVec+", "+ distanceSquared+", "+FTUltimateScavengerHunt.spawnProtectionRadius+ ", "+ FTUltimateScavengerHunt.isHuntStarted);
+        
 		return distanceSquared <= FTUltimateScavengerHunt.spawnProtectionRadius * FTUltimateScavengerHunt.spawnProtectionRadius;
     }
     
@@ -43,8 +45,10 @@ public class CancelPlayerInteraction {
             event.setCanceled(true);
             event.getPlayer().sendMessage(new TextComponent("You cannot break blocks until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         } else {
-        	if(isWithinSpawnProtectionRadius(event.getPos())) event.setCanceled(true);
-        	event.getPlayer().sendMessage(new TextComponent("You cannot break blocks within the spawn protection area."), event.getPlayer().getUUID());
+        	if(isWithinSpawnProtectionRadius(event.getPos())) {
+        		event.setCanceled(true);
+            	event.getPlayer().sendMessage(new TextComponent("You cannot break blocks within the spawn protection area."), event.getPlayer().getUUID());
+        	}
         }
     }
     
