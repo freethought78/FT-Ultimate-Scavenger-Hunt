@@ -38,7 +38,9 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -159,10 +161,9 @@ public class FTUltimateScavengerHunt {
         LOGGER.info("SERVER STARTED ***");
 
         MinecraftServer server = event.getServer();
-        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
-        Path checklistPath = worldFolderPath.resolve("master_checklist.json");
+        File checklistPath = new File(PlayerProgressManager.progressFolder, "master_checklist.json");
 
-        if(Files.exists(checklistPath)) setHuntStarted(true, server.getLevel(Level.OVERWORLD));
+        if(checklistPath.exists()) setHuntStarted(true, server.getLevel(Level.OVERWORLD));
 
         if (isHuntStarted) {
             setWorldBorder(world, EXPANDED_BORDER_SIZE);
@@ -220,6 +221,9 @@ public class FTUltimateScavengerHunt {
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
     	PacketSender.sendSpawnProtectionRadiusPacket(spawnProtectionRadius, defaultSpawnPosition, (ServerPlayer) event.getPlayer());
+    	
+    	//Find or create progress file for connected user
+    	PlayerProgressManager.progressFolder = PlayerProgressManager.getProgressFolder(event.getPlayer().getServer());
     	
     	if(isHuntStarted) {
     		PlayerProgressManager.initializePlayerProgress(event.getPlayer().getName().getString(), event.getPlayer().getServer());
@@ -331,8 +335,7 @@ public class FTUltimateScavengerHunt {
 
 
     private static void saveWinnerToFile(MinecraftServer server, String winnerName) {
-        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
-        Path winnerFilePath = worldFolderPath.resolve("hunt_winner.json");
+        Path winnerFilePath = PlayerProgressManager.progressFolder.toPath().resolve("hunt_winner.json");
 
         try {
             // Write the winner's name to a JSON file
@@ -345,39 +348,26 @@ public class FTUltimateScavengerHunt {
 
     private static void saveMasterChecklist(MinecraftServer server) {
         // Save `masterChecklist` within the world folder
-        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
-        Path checklistPath = worldFolderPath.resolve("master_checklist.json");
+        Path checklistPath = PlayerProgressManager.progressFolder.toPath().resolve("master_checklist.json");
 
         try {
             // Serialize the master checklist to the JSON file in the world folder
             Files.write(checklistPath, new Gson().toJson(masterChecklist).getBytes());
             LOGGER.info("Master checklist saved to " + checklistPath);
         } catch (IOException e) {
-            LOGGER.error("Failed to save master checklist", e);
+        	LOGGER.error("Failed to save master checklist", e);
         }
     }
 
     static Set<String> loadMasterChecklist(MinecraftServer server) {
-        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
-        Path checklistPath = worldFolderPath.resolve("master_checklist.json");
-        Path winnerFilePath = worldFolderPath.resolve("hunt_winner.json");
-
-        // Load the winner name if the file exists
-        if (Files.exists(winnerFilePath)) {
-            try {
-                String winnerJson = new String(Files.readAllBytes(winnerFilePath));
-                huntWinner = new Gson().fromJson(winnerJson, String.class);
-                LOGGER.info("Hunt winner name loaded: " + huntWinner);
-                PacketSender.sendHuntWinnerPacket(huntWinner, server);
-            } catch (IOException e) {
-                LOGGER.error("Failed to load hunt winner name", e);
-            }
-        }
+        loadHuntWinner(server);
+        File checklistPath = new File(PlayerProgressManager.progressFolder, "master_checklist.json");
 
         // Load the master checklist
-        if (Files.exists(checklistPath)) {
+        if (checklistPath.exists()) {
             try {
-                String json = new String(Files.readAllBytes(checklistPath));
+                // Read the file content into a String
+                String json = Files.readString(checklistPath.toPath(), StandardCharsets.UTF_8);
                 setHuntStarted(true, server.getLevel(Level.OVERWORLD));
                 return new Gson().fromJson(json, new TypeToken<Set<String>>() {}.getType());
             } catch (IOException e) {
@@ -387,6 +377,22 @@ public class FTUltimateScavengerHunt {
         return new HashSet<>();
     }
 
+    
+    public static void loadHuntWinner(MinecraftServer server) {
+    	File winnerFilePath = new File(PlayerProgressManager.progressFolder, "hunt_winner.json");
+        // Load the winner name if the file exists
+        if (winnerFilePath.exists()) {
+            try {
+                String json = Files.readString(winnerFilePath.toPath(), StandardCharsets.UTF_8);
+                huntWinner = new Gson().fromJson(json, String.class);
+                LOGGER.info("Hunt winner name loaded: " + huntWinner);
+                PacketSender.sendHuntWinnerPacket(huntWinner, server);
+            } catch (IOException e) {
+                LOGGER.error("Failed to load hunt winner name", e);
+            }
+        }
+    }
+    
     public static void initializeMasterChecklist(MinecraftServer server, int checklistSize) {
         // Try to load the master checklist from file first
         Set<String> loadedChecklist = loadMasterChecklist(server);

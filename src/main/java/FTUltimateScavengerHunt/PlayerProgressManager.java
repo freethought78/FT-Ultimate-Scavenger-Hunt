@@ -4,42 +4,47 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.storage.LevelResource;
 
 public class PlayerProgressManager {
     // Master map to hold all player progress
     static ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>> masterPlayerProgress = new ConcurrentHashMap<>();
 
     private static final Gson gson = new Gson(); // Gson instance for serialization and deserialization
+    
+    public static File progressFolder;
+    
+    public static File getProgressFolder(MinecraftServer server) {
+    	//get the correct subfolder for world data in both single and multiplayer environments
+    	String subFolderString = "";
+    	if (!server.isDedicatedServer()) subFolderString = "saves/";
+    	
+        // Get the path for the player progress folder
+        File progressFolder = new File(server.getServerDirectory(), subFolderString + server.getWorldData().getLevelName() + "/playerdata/");
+        
+        return progressFolder;
+    }
 
  // Load all player progress files into the master map
     public static void loadAllPlayerProgress(MinecraftServer server) {
-        // Get the world name to construct the path for player progress directory
-        String worldName = server.getWorldData().getLevelName();
-        
-        // Create a LevelResource for the player progress directory based on world
-        LevelResource playerProgressDir = new LevelResource(worldName + "/playerprogress");
-
-        // Get the path for the player progress folder
-        File progressFolder = server.getWorldPath(playerProgressDir).toFile();
-
-        // Create the directory if it doesn't exist
-        if (!progressFolder.exists() || !progressFolder.isDirectory()) {
-            progressFolder.mkdirs();
-        }
-
+    	if (progressFolder == null) return;
+    	
         // Iterate through each file in the folder and load its contents
         for (File file : progressFolder.listFiles()) {
+        	if(file.getName().equals("master_checklist.json") || file.getName().equals("hunt_winner.json")) continue;
             if (file.isFile() && file.getName().endsWith(".json")) {
                 try {
                     // Get the player name from the file name
@@ -59,33 +64,32 @@ public class PlayerProgressManager {
     }
 
 
- // Load the player's progress from a file
     public static ConcurrentHashMap<String, Boolean> loadPlayerProgressFromFile(MinecraftServer server, String playerName) {
-        String worldName = server.getWorldData().getLevelName();
-        LevelResource playerProgressDir = new LevelResource(worldName + "/playerprogress");
-        File progressFolder = server.getWorldPath(playerProgressDir).toFile();
         File progressFile = new File(progressFolder, playerName + ".json");
 
         if (progressFile.exists()) {
             try (FileReader reader = new FileReader(progressFile)) {
-                // Deserialize the progress map from the file
-                ConcurrentHashMap<String, Boolean> progress = gson.fromJson(reader, ConcurrentHashMap.class);
+                Type progressMapType = new TypeToken<ConcurrentHashMap<String, Boolean>>() {}.getType();
+                ConcurrentHashMap<String, Boolean> progress = gson.fromJson(reader, progressMapType);
+
                 if (progress != null) {
                     return progress;  // Return the loaded progress
                 } else {
-                    System.err.println("Error: Failed to load progress for player: " + playerName);
+                    FTUltimateScavengerHunt.LOGGER.error("Error: Loaded progress is null for player: " + playerName);
                 }
+            } catch (JsonSyntaxException e) {
+            	FTUltimateScavengerHunt.LOGGER.error("Malformed JSON in player progress file: " + progressFile.getPath(), e);
             } catch (IOException e) {
-                System.err.println("Error reading player progress file: " + progressFile.getPath());
-                e.printStackTrace();
+            	FTUltimateScavengerHunt.LOGGER.error("Error reading player progress file: " + progressFile.getPath(), e);
             }
         } else {
             // Handle the case where no progress file exists
-            System.err.println("No progress file found for player: " + playerName);
+        	FTUltimateScavengerHunt.LOGGER.warn("No progress file found for player: " + playerName);
         }
 
-        return null;  // Return null if no progress is found or an error occurred
+        return null;  // Return an empty progress map as a fallback
     }
+
 
 
 
@@ -97,21 +101,7 @@ public class PlayerProgressManager {
             System.err.println("No progress found for player: " + playerName);
             return;
         }
-
-        // Get the world name using getWorldData().getLevelName()
-        String worldName = server.getWorldData().getLevelName();
-
-        // Create a LevelResource for the player progress directory
-        LevelResource playerProgressDir = new LevelResource(worldName + "/playerprogress");
-
-        // Get the path for the player progress folder
-        File progressFolder = server.getWorldPath(playerProgressDir).toFile();
-
-        // Create the playerprogress folder inside the world folder if it doesn't exist
-        if (!progressFolder.exists()) {
-            progressFolder.mkdirs();  // Create the directory if it doesn't exist
-        }
-
+    	
         // Define the player progress file
         File progressFile = new File(progressFolder, playerName + ".json");
 
@@ -124,24 +114,7 @@ public class PlayerProgressManager {
         }
     }
 
-
-
-
-
-
     public static void initializePlayerProgress(String playerName, MinecraftServer server) {
-        // Get the world name
-        String worldName = server.getWorldData().getLevelName();
-
-        // Get the player progress directory path
-        LevelResource playerProgressDir = new LevelResource(worldName + "/playerprogress");
-        File progressFolder = server.getWorldPath(playerProgressDir).toFile();
-
-        // Ensure the player progress folder exists
-        if (!progressFolder.exists()) {
-            progressFolder.mkdirs();
-        }
-
         // Load player progress from file, if it exists
         ConcurrentHashMap<String, Boolean> existingProgress = loadPlayerProgressFromFile(server, playerName);
 
@@ -253,6 +226,9 @@ public class PlayerProgressManager {
         }
         return false; // Player progress not found
     }
+    
+
+
 
 
 	public static void cleanUpForShutDown(MinecraftServer server) {
