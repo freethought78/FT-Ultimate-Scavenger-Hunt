@@ -109,31 +109,10 @@ public class ModCommands {
                 return Command.SINGLE_SUCCESS;
             });
 
-        // Create the /isitemcomplete command
-        LiteralArgumentBuilder<CommandSourceStack> isItemCompleteCommand = Commands.literal("isitemcomplete")
-            .then(Commands.argument("itemName", StringArgumentType.word())
-                .executes(context -> {
-                    ServerPlayer player = (ServerPlayer) context.getSource().getEntity();
-                    String itemName = StringArgumentType.getString(context, "itemName");
-
-                    // Check if the item is in the checklist and if it's completed
-                    boolean isComplete = PlayerProgressManager.isItemComplete(player.getName().getString(), itemName);
-
-                    if (isComplete) {
-                        context.getSource().sendSuccess(new TextComponent("You have completed the item: " + itemName), false);
-                    } else {
-                        context.getSource().sendSuccess(new TextComponent("You have not completed the item: " + itemName), false);
-                    }
-
-                    return Command.SINGLE_SUCCESS;
-                })
-            );
-
         // Register the commands with the server's dispatcher
         server.getCommands().getDispatcher().register(startHuntCommand);
         server.getCommands().getDispatcher().register(respawnCommand);
         server.getCommands().getDispatcher().register(leaderboardCommand);
-        server.getCommands().getDispatcher().register(isItemCompleteCommand);
     }
 
     // Helper method to handle the logic for starting the hunt

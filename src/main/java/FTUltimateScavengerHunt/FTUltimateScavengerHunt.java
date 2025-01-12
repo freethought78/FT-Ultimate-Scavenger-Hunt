@@ -46,6 +46,7 @@ import java.nio.file.Path;
 import java.util.*;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 import org.slf4j.Logger;
@@ -143,6 +144,10 @@ public class FTUltimateScavengerHunt {
         masterChecklist = loadMasterChecklist(server);
         PlayerProgressManager.loadAllPlayerProgress(server);
         LeaderboardManager.updateLeaderboard(server);
+
+        // if the master checklist has items in it, then the hunt has been started previously
+        if (masterChecklist.size() > 0) isHuntStarted = true;
+        System.out.println("HUNT STARTED: " + isHuntStarted+", "+ masterChecklist.size());
     }
     
     
@@ -186,14 +191,18 @@ public class FTUltimateScavengerHunt {
     
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
+    	// save player and progress data
+        PlayerProgressManager.cleanUpForShutDown(event.getServer());
+        LeaderboardManager.cleanUpForShutDown();
+    	
+    	
         // Clear data structures to avoid stale state
         isHuntStarted = false;
         huntWinner = null;
         masterChecklist.clear();
         recipeList.clear();
         
-        PlayerProgressManager.cleanUpForShutDown(event.getServer());
-        LeaderboardManager.cleanUpForShutDown();
+
     }
 
     public static void deleteNonPlayerEntities(ServerLevel world) {
@@ -348,26 +357,39 @@ public class FTUltimateScavengerHunt {
 
     private static void saveMasterChecklist(MinecraftServer server) {
         // Save `masterChecklist` within the world folder
-        Path checklistPath = PlayerProgressManager.progressFolder.toPath().resolve("master_checklist.json");
+        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
+        Path checklistPath = worldFolderPath.resolve("master_checklist.json");
 
         try {
             // Serialize the master checklist to the JSON file in the world folder
             Files.write(checklistPath, new Gson().toJson(masterChecklist).getBytes());
             LOGGER.info("Master checklist saved to " + checklistPath);
         } catch (IOException e) {
-        	LOGGER.error("Failed to save master checklist", e);
+            LOGGER.error("Failed to save master checklist", e);
         }
     }
 
     static Set<String> loadMasterChecklist(MinecraftServer server) {
-        loadHuntWinner(server);
-        File checklistPath = new File(PlayerProgressManager.progressFolder, "master_checklist.json");
+        Path worldFolderPath = server.getWorldPath(LevelResource.ROOT).toAbsolutePath();
+        Path checklistPath = worldFolderPath.resolve("master_checklist.json");
+        Path winnerFilePath = worldFolderPath.resolve("hunt_winner.json");
+
+        // Load the winner name if the file exists
+        if (Files.exists(winnerFilePath)) {
+            try {
+                String winnerJson = new String(Files.readAllBytes(winnerFilePath));
+                huntWinner = new Gson().fromJson(winnerJson, String.class);
+                LOGGER.info("Hunt winner name loaded: " + huntWinner);
+                PacketSender.sendHuntWinnerPacket(huntWinner, server);
+            } catch (IOException e) {
+                LOGGER.error("Failed to load hunt winner name", e);
+            }
+        }
 
         // Load the master checklist
-        if (checklistPath.exists()) {
+        if (Files.exists(checklistPath)) {
             try {
-                // Read the file content into a String
-                String json = Files.readString(checklistPath.toPath(), StandardCharsets.UTF_8);
+                String json = new String(Files.readAllBytes(checklistPath));
                 setHuntStarted(true, server.getLevel(Level.OVERWORLD));
                 return new Gson().fromJson(json, new TypeToken<Set<String>>() {}.getType());
             } catch (IOException e) {
@@ -376,6 +398,8 @@ public class FTUltimateScavengerHunt {
         }
         return new HashSet<>();
     }
+
+
 
     
     public static void loadHuntWinner(MinecraftServer server) {

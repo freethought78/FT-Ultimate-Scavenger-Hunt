@@ -9,7 +9,7 @@ license="All rights reserved"
 
 [[mods]] #mandatory
 modId="ftultimatescavengerhunt" #mandatory
-version="0.16" #mandatory
+version="0.17" #mandatory
 displayName="FT Ultimate Scavenger Hunt" #mandatory
 
 # A URL for the "homepage" for this mod, displayed in the mod UI

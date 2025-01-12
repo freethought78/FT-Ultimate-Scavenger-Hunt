@@ -71,6 +71,12 @@ public class FTQuestHubBlock extends Block {
 
         // On the server side
         if (!level.isClientSide()) {
+            // Check if the hunt has ended already
+            if (FTUltimateScavengerHunt.huntWinner != null) {
+                player.sendMessage(new TextComponent("The hunt has ended and the winner is "+FTUltimateScavengerHunt.huntWinner + "!"), player.getUUID());
+                return InteractionResult.SUCCESS;
+            }
+        	
             if (heldItem.isEmpty()) {
                 return InteractionResult.SUCCESS;
             }
@@ -113,13 +119,5 @@ public class FTQuestHubBlock extends Block {
         }
 
         return InteractionResult.SUCCESS; // Return SUCCESS to indicate that the action was handled
-    }
-
-
-    // Utility methods using PlayerProgressManager
-
-    public static boolean isItemComplete(String playerName, String itemName) {
-        // This method now uses PlayerProgressManager's isItemComplete method with player name
-        return PlayerProgressManager.isItemComplete(playerName, itemName);
     }
 }
