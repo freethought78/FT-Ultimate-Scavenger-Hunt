@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -60,13 +61,29 @@ public class CancelPlayerInteraction {
             event.getPlayer().sendMessage(new TextComponent("You cannot pick up items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
+    
+    
+    
+    // Keep players' hunger and saturation at maximum before the scavenger hunt starts
+    @SubscribeEvent
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (!FTUltimateScavengerHunt.isHuntStarted && event.phase == TickEvent.Phase.START) {
+            if (!event.player.level.isClientSide && event.player instanceof ServerPlayer) {
+                ServerPlayer serverPlayer = (ServerPlayer) event.player;
+
+                // Keep hunger and saturation full
+                serverPlayer.getFoodData().setFoodLevel(20);
+                serverPlayer.getFoodData().setSaturation(20.0f);
+            }
+        }
+    }
 
     // Prevent XP gain before the scavenger hunt starts
     @SubscribeEvent
     public static void onXPChange(XpChange event) {
         if (!FTUltimateScavengerHunt.isHuntStarted && event.isCancelable()) {
             event.setCanceled(true);
-            event.getEntity().sendMessage(new TextComponent("You cannot gain XP until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
+            //event.getEntity().sendMessage(new TextComponent("You cannot gain XP until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
         }
     }
 
@@ -75,7 +92,7 @@ public class CancelPlayerInteraction {
     public static void onPlayerDamage(LivingDamageEvent event) {
         if (!FTUltimateScavengerHunt.isHuntStarted && event.isCancelable()) {
             event.setCanceled(true);
-            event.getEntity().sendMessage(new TextComponent("You cannot take damage until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
+            //event.getEntity().sendMessage(new TextComponent("You cannot take damage until the scavenger hunt is started with /starthunt."), event.getEntity().getUUID());
         }
     }
 
@@ -106,7 +123,7 @@ public class CancelPlayerInteraction {
     public static void onPlayerAttackEntity(AttackEntityEvent event) {
         if (!FTUltimateScavengerHunt.isHuntStarted && event.isCancelable()) {
             event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot attack entities until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
+            //event.getPlayer().sendMessage(new TextComponent("You cannot attack entities until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
     
@@ -115,7 +132,7 @@ public class CancelPlayerInteraction {
     public static void onItemDrop(ItemTossEvent event) {
         if (!FTUltimateScavengerHunt.isHuntStarted && event.isCancelable()) {
             event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot drop items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
+            //event.getPlayer().sendMessage(new TextComponent("You cannot drop items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
 
@@ -124,7 +141,7 @@ public class CancelPlayerInteraction {
     public static void onItemUse(PlayerInteractEvent.RightClickItem event) {
         if (!FTUltimateScavengerHunt.isHuntStarted && event.isCancelable()) {
             event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot use items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
+            //event.getPlayer().sendMessage(new TextComponent("You cannot use items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
 
@@ -133,7 +150,7 @@ public class CancelPlayerInteraction {
     public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
         if (!FTUltimateScavengerHunt.isHuntStarted && event.isCancelable()) {
             event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot interact with entities until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
+            //event.getPlayer().sendMessage(new TextComponent("You cannot interact with entities until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
 
@@ -142,7 +159,7 @@ public class CancelPlayerInteraction {
     public static void onItemCraft(PlayerEvent.ItemCraftedEvent event) {
         if (!FTUltimateScavengerHunt.isHuntStarted && event.isCancelable()) {
             event.setCanceled(true);
-            event.getPlayer().sendMessage(new TextComponent("You cannot craft items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
+            //event.getPlayer().sendMessage(new TextComponent("You cannot craft items until the scavenger hunt is started with /starthunt."), event.getPlayer().getUUID());
         }
     }
 
